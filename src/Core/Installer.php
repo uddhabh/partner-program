@@ -186,164 +186,20 @@ final class Installer {
 	}
 
 	/**
-	 * Version-aware schema/data migrations. Idempotent, safe to call repeatedly.
+	 * Version-aware migration dispatcher. Idempotent, safe to call repeatedly.
 	 * Triggered from Plugin::maybe_run_upgrades() with the previously-installed
-	 * version so each block runs at most once per site.
+	 * version. Currently a no-op — the pre-launch upgrade history (1.0 → 1.1.x)
+	 * was scrubbed since no install carried real data; new entries get added
+	 * here the first time we ship a non-additive schema or data change to a
+	 * site that has data we want to preserve.
+	 *
+	 * @phpstan-param string $from_version
 	 */
 	public static function migrate( string $from_version ): void {
-		if ( '' === $from_version || '0' === $from_version ) {
-			$from_version = '0.0.0';
-		}
-
-		if ( version_compare( $from_version, '1.1.0', '<' ) ) {
-			self::migrate_to_1_1_0();
-		}
-
-		if ( version_compare( $from_version, '1.1.1', '<' ) ) {
-			self::migrate_to_1_1_1();
-		}
-	}
-
-	/**
-	 * 1.1.0 — UNIQUE constraint on commissions.order_id (manual adjustments
-	 * become NULL), tier-key column on affiliates, settings cleanup.
-	 */
-	private static function migrate_to_1_1_0(): void {
-		global $wpdb;
-
-		$commissions = $wpdb->prefix . 'pp_commissions';
-		$affiliates  = $wpdb->prefix . 'pp_affiliates';
-
-		// Move adjustment rows from order_id=0 to NULL BEFORE adding the unique index.
-		$wpdb->query( "UPDATE {$commissions} SET order_id = NULL WHERE order_id = 0 AND source = 'adjustment'" ); // phpcs:ignore WordPress.DB
-
-		// Make order_id nullable if not already.
-		$col = $wpdb->get_row( $wpdb->prepare( "SHOW COLUMNS FROM {$commissions} LIKE %s", 'order_id' ), ARRAY_A );
-		if ( $col && false === stripos( (string) ( $col['Null'] ?? '' ), 'YES' ) ) {
-			$wpdb->query( "ALTER TABLE {$commissions} MODIFY order_id BIGINT UNSIGNED NULL" ); // phpcs:ignore WordPress.DB
-		}
-
-		// Swap the non-unique KEY order_id for UNIQUE KEY uniq_order_id.
-		$indexes  = $wpdb->get_results( "SHOW INDEX FROM {$commissions}", ARRAY_A ) ?: [];
-		$has_uniq = false;
-		$has_old  = false;
-		foreach ( $indexes as $idx ) {
-			if ( 'uniq_order_id' === ( $idx['Key_name'] ?? '' ) ) {
-				$has_uniq = true;
-			}
-			if ( 'order_id' === ( $idx['Key_name'] ?? '' ) && 1 === (int) ( $idx['Non_unique'] ?? 1 ) ) {
-				$has_old = true;
-			}
-		}
-		if ( $has_old ) {
-			$wpdb->query( "ALTER TABLE {$commissions} DROP INDEX order_id" ); // phpcs:ignore WordPress.DB
-		}
-		if ( ! $has_uniq ) {
-			// May fail if duplicate (order_id, source=referral) rows exist from a buggy
-			// pre-1.1 install. We swallow the error rather than block the upgrade; admins
-			// can resolve duplicates and re-run via WP-CLI: `wp partner-program migrate`.
-			$wpdb->hide_errors();
-			$wpdb->query( "ALTER TABLE {$commissions} ADD UNIQUE KEY uniq_order_id (order_id)" ); // phpcs:ignore WordPress.DB
-			$wpdb->show_errors();
-		}
-
-		// Add current_tier_key column to affiliates.
-		$col = $wpdb->get_row( $wpdb->prepare( "SHOW COLUMNS FROM {$affiliates} LIKE %s", 'current_tier_key' ), ARRAY_A );
-		if ( ! $col ) {
-			$wpdb->query( "ALTER TABLE {$affiliates} ADD COLUMN current_tier_key VARCHAR(40) NULL AFTER current_tier_id" ); // phpcs:ignore WordPress.DB
-		}
-
-		// Backfill stable keys + sort onto stored tier settings, and strip dead UI keys.
-		self::cleanup_settings_for_1_1_0();
-
-		// Recompute everyone's tier under the new key-based logic.
-		if ( class_exists( \PartnerProgram\Domain\TierResolver::class ) ) {
-			\PartnerProgram\Domain\TierResolver::recalculate_all();
-		}
-	}
-
-	/**
-	 * 1.1.1 — drop the deprecated "extra shared password" portal feature.
-	 * The plaintext password should not linger in wp_options; the `portal`
-	 * section becomes empty after cleanup so we drop it entirely. The stale
-	 * `pp_shared_pw` cookie on visitors' browsers is harmless once the
-	 * server-side check is gone, so no cookie cleanup is necessary.
-	 */
-	private static function migrate_to_1_1_1(): void {
-		$option = SettingsRepo::OPTION;
-		$stored = get_option( $option, [] );
-		if ( ! is_array( $stored ) ) {
-			return;
-		}
-
-		if ( isset( $stored['portal'] ) && is_array( $stored['portal'] ) ) {
-			unset(
-				$stored['portal']['enable_shared_password'],
-				$stored['portal']['shared_password']
-			);
-			if ( empty( $stored['portal'] ) ) {
-				unset( $stored['portal'] );
-			}
-		}
-
-		update_option( $option, $stored, false );
-		( new SettingsRepo() )->reset_cache();
-	}
-
-	private static function cleanup_settings_for_1_1_0(): void {
-		$option = SettingsRepo::OPTION;
-		$stored = get_option( $option, [] );
-		if ( ! is_array( $stored ) ) {
-			return;
-		}
-
-		// Backfill tier keys + sort by min ASC for stable ordering.
-		if ( isset( $stored['tiers'] ) && is_array( $stored['tiers'] ) ) {
-			$used   = [];
-			$tiers  = [];
-			foreach ( array_values( $stored['tiers'] ) as $i => $t ) {
-				if ( ! is_array( $t ) ) {
-					continue;
-				}
-				if ( empty( $t['key'] ) ) {
-					$base = sanitize_title( (string) ( $t['label'] ?? '' ) );
-					if ( '' === $base ) {
-						$base = 'tier-' . ( $i + 1 );
-					}
-					$key = $base;
-					$n   = 2;
-					while ( in_array( $key, $used, true ) ) {
-						$key = $base . '-' . $n;
-						++$n;
-					}
-					$t['key'] = $key;
-				}
-				$used[]  = (string) $t['key'];
-				$tiers[] = $t;
-			}
-			usort(
-				$tiers,
-				static function ( $a, $b ) {
-					return (float) ( $a['min'] ?? 0 ) <=> (float) ( $b['min'] ?? 0 );
-				}
-			);
-			$stored['tiers'] = $tiers;
-		}
-
-		// Drop dead UI keys (require_id_upload, recaptcha_*, reject_chargeback).
-		if ( isset( $stored['application'] ) && is_array( $stored['application'] ) ) {
-			unset(
-				$stored['application']['require_id_upload'],
-				$stored['application']['enable_recaptcha'],
-				$stored['application']['recaptcha_site'],
-				$stored['application']['recaptcha_secret']
-			);
-		}
-		if ( isset( $stored['exclusions'] ) && is_array( $stored['exclusions'] ) ) {
-			unset( $stored['exclusions']['reject_chargeback'] );
-		}
-
-		update_option( $option, $stored, false );
-		( new SettingsRepo() )->reset_cache();
+		// Reserved for future migrations:
+		// if ( version_compare( $from_version, 'X.Y.Z', '<' ) ) {
+		//     self::migrate_to_X_Y_Z();
+		// }
+		unset( $from_version );
 	}
 }
