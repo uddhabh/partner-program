@@ -11,6 +11,7 @@ namespace PartnerProgram\Admin;
 
 use PartnerProgram\Domain\ApplicationRepo;
 use PartnerProgram\Support\Capabilities;
+use PartnerProgram\Support\SettingsRepo;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -61,7 +62,17 @@ final class ApplicationsScreen {
 			echo '<div class="wrap"><h1>' . esc_html__( 'Application not found.', 'partner-program' ) . '</h1></div>';
 			return;
 		}
-		$data = json_decode( (string) $app['submitted_data'], true ) ?: [];
+		$data        = json_decode( (string) $app['submitted_data'], true ) ?: [];
+		$uploads     = json_decode( (string) ( $app['uploaded_ids'] ?? '' ), true ) ?: [];
+		$settings    = new SettingsRepo();
+		$fields_def  = (array) $settings->get( 'application.fields', [] );
+		$fields_by_k = [];
+		foreach ( $fields_def as $f ) {
+			$fk = isset( $f['key'] ) ? (string) $f['key'] : '';
+			if ( '' !== $fk ) {
+				$fields_by_k[ $fk ] = $f;
+			}
+		}
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Application', 'partner-program' ) . ' #' . (int) $app['id'] . '</h1>';
 		if ( isset( $_GET['reviewed'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -73,7 +84,24 @@ final class ApplicationsScreen {
 		echo '<tr><th>' . esc_html__( 'Status', 'partner-program' ) . '</th><td>' . esc_html( (string) $app['status'] ) . '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Submitted', 'partner-program' ) . '</th><td>' . esc_html( (string) $app['created_at'] ) . '</td></tr>';
 		foreach ( $data as $k => $v ) {
-			echo '<tr><th>' . esc_html( (string) $k ) . '</th><td>' . esc_html( is_scalar( $v ) ? (string) $v : (string) wp_json_encode( $v ) ) . '</td></tr>';
+			$field = $fields_by_k[ (string) $k ] ?? [];
+			$label = self::humanize_label( (string) $k, $field );
+			echo '<tr><th>' . esc_html( $label ) . '</th><td>' . self::format_value( $v, $field ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+		foreach ( $uploads as $k => $attachment_id ) {
+			$field = $fields_by_k[ (string) $k ] ?? [];
+			$label = self::humanize_label( (string) $k, $field );
+			$url   = wp_get_attachment_url( (int) $attachment_id );
+			if ( $url ) {
+				$value = sprintf(
+					'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+					esc_url( $url ),
+					esc_html__( 'View upload', 'partner-program' )
+				);
+			} else {
+				$value = esc_html__( 'Upload missing', 'partner-program' );
+			}
+			echo '<tr><th>' . esc_html( $label ) . '</th><td>' . $value . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		echo '</tbody></table>';
 
@@ -97,5 +125,60 @@ final class ApplicationsScreen {
 		}
 
 		echo '</div>';
+	}
+
+	/**
+	 * Resolve a human-readable label for an applicant field row.
+	 * Falls back to a humanized version of the key if no field definition matches
+	 * (covers historical applications whose fields have since been renamed/removed).
+	 *
+	 * @param array<string, mixed> $field
+	 */
+	private static function humanize_label( string $key, array $field ): string {
+		$label = isset( $field['label'] ) ? (string) $field['label'] : '';
+		if ( '' !== $label ) {
+			return $label;
+		}
+		return ucwords( str_replace( [ '_', '-' ], ' ', $key ) );
+	}
+
+	/**
+	 * Render an applicant field's value with light type-aware formatting.
+	 * Returns escaped HTML.
+	 *
+	 * @param mixed                $value
+	 * @param array<string, mixed> $field
+	 */
+	private static function format_value( $value, array $field ): string {
+		$type = isset( $field['type'] ) ? (string) $field['type'] : 'text';
+
+		if ( 'checkbox' === $type ) {
+			$truthy = ! empty( $value ) && '0' !== (string) $value;
+			return esc_html( $truthy ? __( 'Yes', 'partner-program' ) : __( 'No', 'partner-program' ) );
+		}
+
+		if ( 'select' === $type && is_scalar( $value ) ) {
+			$raw = (string) $value;
+			foreach ( (array) ( $field['options'] ?? [] ) as $opt_key => $opt ) {
+				if ( is_array( $opt ) ) {
+					$opt_value = (string) ( $opt['value'] ?? $opt_key );
+					$opt_label = (string) ( $opt['label'] ?? $opt_value );
+				} else {
+					$opt_value = (string) $opt;
+					$opt_label = ucwords( str_replace( [ '_', '-' ], ' ', $opt_value ) );
+				}
+				if ( $opt_value === $raw ) {
+					return esc_html( $opt_label );
+				}
+			}
+			// Unknown option (e.g. removed from settings since submission): humanize.
+			return esc_html( ucwords( str_replace( [ '_', '-' ], ' ', $raw ) ) );
+		}
+
+		if ( is_scalar( $value ) ) {
+			return esc_html( (string) $value );
+		}
+
+		return esc_html( (string) wp_json_encode( $value ) );
 	}
 }
