@@ -34,6 +34,8 @@ Tiered commissions, coupon attribution, hold periods, manual payouts, compliance
 3. Activate. The activator creates 9 `pp_*` tables, a `partner_program_partner` role, three pages (`/partner-portal`, `/partner-application`, `/partner-login`), and schedules cron jobs for hold release and tier recalculation.
 4. Visit *Partner Program → Settings* to configure tiers, hold, threshold, application fields and compliance text.
 
+> **Pre-launch gating**: the portal is already gated by WP login + the partner role + an approval check, so unauthorized users can't read it. If you additionally want to hide the portal *page itself* during setup or share it with non-partner stakeholders, use WordPress's built-in page password (Pages → edit *Partner Portal* → *Visibility → Password protected*). No extra plugin feature needed.
+
 ## Architecture
 
 ```

@@ -41,7 +41,6 @@ final class Settings {
 			'application'  => __( 'Application Form', 'partner-program' ),
 			'compliance'   => __( 'Compliance', 'partner-program' ),
 			'exclusions'   => __( 'Exclusions', 'partner-program' ),
-			'portal'       => __( 'Portal', 'partner-program' ),
 			'iotools'      => __( 'Import / Export', 'partner-program' ),
 		];
 		$active = isset( $_GET['tab'] ) ? sanitize_key( (string) $_GET['tab'] ) : 'general'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -88,7 +87,6 @@ final class Settings {
 			case 'application':   self::tab_application( $settings ); break;
 			case 'compliance':    self::tab_compliance( $settings ); break;
 			case 'exclusions':    self::tab_exclusions( $settings ); break;
-			case 'portal':        self::tab_portal( $settings ); break;
 		}
 
 		submit_button();
@@ -320,13 +318,6 @@ final class Settings {
 		echo '</table>';
 	}
 
-	private static function tab_portal( SettingsRepo $s ): void {
-		echo '<table class="form-table">';
-		self::field_checkbox( 'enable_shared_password', __( 'Enable extra shared password', 'partner-program' ), (bool) $s->get( 'portal.enable_shared_password' ) );
-		self::field_text( 'shared_password', __( 'Shared password', 'partner-program' ), (string) $s->get( 'portal.shared_password' ) );
-		echo '</table>';
-	}
-
 	private static function render_iotools(): void {
 		$nonce = wp_create_nonce( self::NONCE );
 		echo '<h2>' . esc_html__( 'Export', 'partner-program' ) . '</h2>';
@@ -535,12 +526,6 @@ final class Settings {
 				] );
 				break;
 
-			case 'portal':
-				$repo->save_section( 'portal', [
-					'enable_shared_password' => ! empty( $_POST['enable_shared_password'] ),
-					'shared_password'        => (string) wp_unslash( $_POST['shared_password'] ?? '' ),
-				] );
-				break;
 		}
 
 		wp_safe_redirect( add_query_arg(

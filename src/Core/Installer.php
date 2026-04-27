@@ -198,6 +198,10 @@ final class Installer {
 		if ( version_compare( $from_version, '1.1.0', '<' ) ) {
 			self::migrate_to_1_1_0();
 		}
+
+		if ( version_compare( $from_version, '1.1.1', '<' ) ) {
+			self::migrate_to_1_1_1();
+		}
 	}
 
 	/**
@@ -256,6 +260,34 @@ final class Installer {
 		if ( class_exists( \PartnerProgram\Domain\TierResolver::class ) ) {
 			\PartnerProgram\Domain\TierResolver::recalculate_all();
 		}
+	}
+
+	/**
+	 * 1.1.1 — drop the deprecated "extra shared password" portal feature.
+	 * The plaintext password should not linger in wp_options; the `portal`
+	 * section becomes empty after cleanup so we drop it entirely. The stale
+	 * `pp_shared_pw` cookie on visitors' browsers is harmless once the
+	 * server-side check is gone, so no cookie cleanup is necessary.
+	 */
+	private static function migrate_to_1_1_1(): void {
+		$option = SettingsRepo::OPTION;
+		$stored = get_option( $option, [] );
+		if ( ! is_array( $stored ) ) {
+			return;
+		}
+
+		if ( isset( $stored['portal'] ) && is_array( $stored['portal'] ) ) {
+			unset(
+				$stored['portal']['enable_shared_password'],
+				$stored['portal']['shared_password']
+			);
+			if ( empty( $stored['portal'] ) ) {
+				unset( $stored['portal'] );
+			}
+		}
+
+		update_option( $option, $stored, false );
+		( new SettingsRepo() )->reset_cache();
 	}
 
 	private static function cleanup_settings_for_1_1_0(): void {

@@ -61,24 +61,6 @@ final class Portal {
 		wp_enqueue_style( 'partner-program-portal' );
 		$settings = new SettingsRepo();
 
-		if ( (bool) $settings->get( 'portal.enable_shared_password', false ) ) {
-			$shared = (string) $settings->get( 'portal.shared_password', '' );
-			$entered = isset( $_COOKIE['pp_shared_pw'] ) ? (string) $_COOKIE['pp_shared_pw'] : '';
-			if ( $shared && ! hash_equals( $shared, $entered ) ) {
-				if ( isset( $_POST['_pp_shared_pw_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( (string) $_POST['_pp_shared_pw_nonce'] ) ), 'pp_shared_pw' ) && isset( $_POST['shared_password'] ) ) {
-					$try = (string) wp_unslash( $_POST['shared_password'] );
-					if ( hash_equals( $shared, $try ) ) {
-						setcookie( 'pp_shared_pw', $shared, time() + DAY_IN_SECONDS, COOKIEPATH ?: '/', COOKIE_DOMAIN ?: '', is_ssl(), true );
-						$_COOKIE['pp_shared_pw'] = $shared;
-					} else {
-						return Template::render( 'portal/shared-password.php', [ 'error' => __( 'Incorrect password.', 'partner-program' ) ] );
-					}
-				} else {
-					return Template::render( 'portal/shared-password.php', [ 'error' => '' ] );
-				}
-			}
-		}
-
 		if ( ! is_user_logged_in() ) {
 			$login_id = (int) get_option( 'partner_program_login_page_id' );
 			$url      = $login_id ? get_permalink( $login_id ) : wp_login_url( get_permalink() );

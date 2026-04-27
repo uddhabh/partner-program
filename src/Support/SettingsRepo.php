@@ -92,10 +92,6 @@ final class SettingsRepo {
 				'fraud_meta_key'      => '_pp_fraud_risk',
 				'compliance_meta_key' => '_pp_compliance_violation',
 			],
-			'portal'       => [
-				'enable_shared_password' => false,
-				'shared_password'        => '',
-			],
 		];
 	}
 
