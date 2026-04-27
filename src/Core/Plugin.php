@@ -71,9 +71,9 @@ final class Plugin {
 
 		Privacy::register();
 
-		if ( is_admin() ) {
-			Updater::register();
-		}
+		// Updater also runs on cron-driven update checks (wp_update_plugins),
+		// so we register it on every request, not just admin pageloads.
+		Updater::register();
 
 		if ( defined( 'WP_CLI' ) && \WP_CLI ) {
 			Commands::register();
@@ -86,11 +86,17 @@ final class Plugin {
 	}
 
 	public function maybe_run_upgrades(): void {
-		$installed = get_option( 'partner_program_db_version' );
-		if ( PARTNER_PROGRAM_VERSION !== $installed ) {
-			Installer::install();
-			update_option( 'partner_program_db_version', PARTNER_PROGRAM_VERSION );
+		$installed = (string) get_option( 'partner_program_db_version', '' );
+		if ( PARTNER_PROGRAM_VERSION === $installed ) {
+			return;
 		}
+		Installer::install();
+		Installer::migrate( $installed );
+		// New caps and roles can be introduced across versions; re-apply on upgrade
+		// (not just activation) so admins don't lose access after a plain update.
+		Capabilities::register_role();
+		Capabilities::grant_admin_caps();
+		update_option( 'partner_program_db_version', PARTNER_PROGRAM_VERSION );
 	}
 
 	public function get( string $key ): ?object {

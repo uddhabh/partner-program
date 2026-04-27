@@ -43,16 +43,18 @@ $current_sales = (int) ( $tier_progress['current_sales_cents'] ?? 0 );
 
 <?php if ( $next_tier ) : ?>
 	<?php
-	$gap_dollars = max( 0, (float) $next_tier['min'] - ( $current_sales / 100 ) );
+	$next_min_cents = (int) round( (float) ( $next_tier['min'] ?? 0 ) * 100 );
+	$gap_cents      = max( 0, $next_min_cents - $current_sales );
 	?>
 	<p>
 		<?php
 		printf(
+			/* translators: 1: target sales amount, 2: tier label, 3: tier rate %, 4: remaining amount */
 			esc_html__( 'Reach %1$s in sales this month to unlock %2$s (%3$s%%) — %4$s to go.', 'partner-program' ),
-			esc_html( '$' . number_format_i18n( (float) $next_tier['min'], 2 ) ),
+			esc_html( Money::format( $next_min_cents ) ),
 			esc_html( (string) ( $next_tier['label'] ?? '' ) ),
 			esc_html( (string) $next_tier['rate'] ),
-			esc_html( '$' . number_format_i18n( $gap_dollars, 2 ) )
+			esc_html( Money::format( $gap_cents ) )
 		);
 		?>
 	</p>

@@ -65,19 +65,35 @@ final class Tracker {
 	}
 
 	private function record_visit( int $affiliate_id, string $code ): void {
+		$ip_hash = self::ip_hash();
+
+		// Best-effort dedup: a single browser bouncing between pages with the
+		// ?ref= param shouldn't add a new visit row each request. We coalesce
+		// hits from the same IP+code within a 1-hour window via a transient.
+		// Transients fall back to options when no object cache is present, so
+		// this also works on vanilla shared hosting.
+		$dedup_key = 'pp_visit_' . md5( $code . '|' . $ip_hash );
+		if ( $ip_hash && get_transient( $dedup_key ) ) {
+			return;
+		}
+
 		global $wpdb;
 		$wpdb->insert(
 			$wpdb->prefix . 'pp_visits',
 			[
-				'affiliate_id' => $affiliate_id,
+				'affiliate_id'  => $affiliate_id,
 				'referral_code' => $code,
-				'ip_hash'      => self::ip_hash(),
-				'user_agent'   => isset( $_SERVER['HTTP_USER_AGENT'] ) ? substr( sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_USER_AGENT'] ) ), 0, 255 ) : null,
-				'landing_url'  => isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['REQUEST_URI'] ) ) : null,
-				'referrer_url' => isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['HTTP_REFERER'] ) ) : null,
-				'created_at'   => current_time( 'mysql', true ),
+				'ip_hash'       => $ip_hash,
+				'user_agent'    => isset( $_SERVER['HTTP_USER_AGENT'] ) ? substr( sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_USER_AGENT'] ) ), 0, 255 ) : null,
+				'landing_url'   => isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['REQUEST_URI'] ) ) : null,
+				'referrer_url'  => isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['HTTP_REFERER'] ) ) : null,
+				'created_at'    => current_time( 'mysql', true ),
 			]
 		);
+
+		if ( $ip_hash ) {
+			set_transient( $dedup_key, 1, HOUR_IN_SECONDS );
+		}
 	}
 
 	public static function ip_hash(): string {

@@ -18,6 +18,13 @@ $progress_pct   = $min_threshold_cents > 0 ? min( 100, (int) round( ( $approved_
 <?php if ( ! empty( $_GET['saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 	<div class="pp-alert pp-alert-success"><?php esc_html_e( 'Saved.', 'partner-program' ); ?></div>
 <?php endif; ?>
+<?php
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$pp_error = isset( $_GET['pp_error'] ) ? sanitize_key( (string) wp_unslash( $_GET['pp_error'] ) ) : '';
+if ( 'invalid_method' === $pp_error ) :
+	?>
+	<div class="pp-alert pp-alert-error"><?php esc_html_e( 'Please choose one of the enabled payout methods.', 'partner-program' ); ?></div>
+<?php endif; ?>
 
 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-form">
 	<input type="hidden" name="action" value="pp_portal_save_payout" />

@@ -162,12 +162,23 @@ final class Settings {
 	private static function tab_tiers( SettingsRepo $s ): void {
 		$tiers = (array) $s->get( 'tiers', [] );
 		echo '<p>' . esc_html__( 'Tier ranges are matched against the affiliate\'s prior calendar month sales (gross attributed). The matched rate applies to the next month\'s commissions.', 'partner-program' ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Label', 'partner-program' ) . '</th><th>' . esc_html__( 'Min ($)', 'partner-program' ) . '</th><th>' . esc_html__( 'Max ($)', 'partner-program' ) . '</th><th>' . esc_html__( 'Rate %', 'partner-program' ) . '</th></tr></thead><tbody>';
-		$tiers[] = [ 'label' => '', 'min' => '', 'max' => '', 'rate' => '' ];
+		echo '<table class="widefat striped"><thead><tr>'
+			. '<th>' . esc_html__( 'Key', 'partner-program' ) . '</th>'
+			. '<th>' . esc_html__( 'Label', 'partner-program' ) . '</th>'
+			. '<th>' . esc_html__( 'Min ($)', 'partner-program' ) . '</th>'
+			. '<th>' . esc_html__( 'Max ($)', 'partner-program' ) . '</th>'
+			. '<th>' . esc_html__( 'Rate %', 'partner-program' ) . '</th>'
+			. '</tr></thead><tbody>';
+		$tiers[] = [ 'key' => '', 'label' => '', 'min' => '', 'max' => '', 'rate' => '' ];
 		foreach ( $tiers as $i => $t ) {
 			printf(
-				'<tr><td><input type="text" name="tiers[%1$d][label]" value="%2$s" /></td><td><input type="number" step="0.01" name="tiers[%1$d][min]" value="%3$s" /></td><td><input type="number" step="0.01" name="tiers[%1$d][max]" value="%4$s" /></td><td><input type="number" step="0.01" name="tiers[%1$d][rate]" value="%5$s" /></td></tr>',
+				'<tr><td><input type="text" name="tiers[%1$d][key]" value="%2$s" placeholder="auto" /></td>'
+				. '<td><input type="text" name="tiers[%1$d][label]" value="%3$s" /></td>'
+				. '<td><input type="number" step="0.01" name="tiers[%1$d][min]" value="%4$s" /></td>'
+				. '<td><input type="number" step="0.01" name="tiers[%1$d][max]" value="%5$s" /></td>'
+				. '<td><input type="number" step="0.01" name="tiers[%1$d][rate]" value="%6$s" /></td></tr>',
 				(int) $i,
+				esc_attr( (string) ( $t['key'] ?? '' ) ),
 				esc_attr( (string) ( $t['label'] ?? '' ) ),
 				esc_attr( (string) ( $t['min'] ?? '' ) ),
 				esc_attr( (string) ( $t['max'] ?? '' ) ),
@@ -175,7 +186,7 @@ final class Settings {
 			);
 		}
 		echo '</tbody></table>';
-		echo '<p class="description">' . esc_html__( 'Leave the last row empty if you do not need it. Leave Max blank for the open-ended top tier.', 'partner-program' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Key is the stable identifier for an affiliate\'s assigned tier; leave blank to auto-generate from the label. Leave the last row empty if you do not need it. Leave Max blank for the open-ended top tier. Tiers are sorted by Min on save.', 'partner-program' ) . '</p>';
 	}
 
 	private static function tab_coupon_bonus( SettingsRepo $s ): void {
@@ -239,12 +250,7 @@ final class Settings {
 	}
 
 	private static function tab_application( SettingsRepo $s ): void {
-		echo '<table class="form-table">';
-		self::field_checkbox( 'require_id_upload', __( 'Require ID / business proof upload', 'partner-program' ), (bool) $s->get( 'application.require_id_upload' ) );
-		self::field_checkbox( 'enable_recaptcha', __( 'Enable reCAPTCHA / Turnstile', 'partner-program' ), (bool) $s->get( 'application.enable_recaptcha' ) );
-		self::field_text( 'recaptcha_site', __( 'Site key', 'partner-program' ), (string) $s->get( 'application.recaptcha_site' ) );
-		self::field_text( 'recaptcha_secret', __( 'Secret key', 'partner-program' ), (string) $s->get( 'application.recaptcha_secret' ) );
-		echo '</table>';
+		echo '<p class="description">' . esc_html__( 'Per-field requirements (including the ID / business proof upload) are controlled in the form fields table below — toggle the field\'s "Required" checkbox or remove the row to drop it from the form.', 'partner-program' ) . '</p>';
 
 		echo '<h2>' . esc_html__( 'Form fields', 'partner-program' ) . '</h2>';
 		echo '<table class="widefat striped"><thead><tr><th>Key</th><th>Label</th><th>Type</th><th>Required</th></tr></thead><tbody>';
@@ -308,9 +314,9 @@ final class Settings {
 		self::field_checkbox( 'reject_refunded', __( 'Reject commissions on refunded orders', 'partner-program' ), (bool) $s->get( 'exclusions.reject_refunded' ) );
 		self::field_checkbox( 'reject_cancelled', __( 'Reject commissions on cancelled orders', 'partner-program' ), (bool) $s->get( 'exclusions.reject_cancelled' ) );
 		self::field_checkbox( 'reject_failed', __( 'Reject commissions on failed orders', 'partner-program' ), (bool) $s->get( 'exclusions.reject_failed' ) );
-		self::field_checkbox( 'reject_chargeback', __( 'Reject commissions on chargeback orders', 'partner-program' ), (bool) $s->get( 'exclusions.reject_chargeback' ) );
 		self::field_text( 'fraud_meta_key', __( 'Order meta key marking fraud', 'partner-program' ), (string) $s->get( 'exclusions.fraud_meta_key' ) );
 		self::field_text( 'compliance_meta_key', __( 'Order meta key marking compliance violation', 'partner-program' ), (string) $s->get( 'exclusions.compliance_meta_key' ) );
+		echo '<tr><th scope="row">' . esc_html__( 'Chargebacks', 'partner-program' ) . '</th><td><p class="description">' . esc_html__( 'Mark chargeback orders with the fraud meta key above (or via the Compliance violation meta key) — they\'ll be excluded automatically.', 'partner-program' ) . '</p></td></tr>';
 		echo '</table>';
 	}
 
@@ -376,18 +382,53 @@ final class Settings {
 			case 'tiers':
 				$rows  = isset( $_POST['tiers'] ) && is_array( $_POST['tiers'] ) ? wp_unslash( (array) $_POST['tiers'] ) : [];
 				$clean = [];
+				$used  = [];
 				foreach ( $rows as $row ) {
 					if ( ! is_array( $row ) ) { continue; }
 					$rate = isset( $row['rate'] ) && '' !== $row['rate'] ? (float) $row['rate'] : null;
 					if ( null === $rate ) { continue; }
+
+					$label = sanitize_text_field( (string) ( $row['label'] ?? '' ) );
+					$key   = isset( $row['key'] ) ? sanitize_title( (string) $row['key'] ) : '';
+					if ( '' === $key ) {
+						$base = sanitize_title( $label );
+						if ( '' === $base ) {
+							$base = 'tier-' . ( count( $clean ) + 1 );
+						}
+						$key = $base;
+						$n   = 2;
+						while ( in_array( $key, $used, true ) ) {
+							$key = $base . '-' . $n;
+							++$n;
+						}
+					} elseif ( in_array( $key, $used, true ) ) {
+						$base = $key;
+						$n    = 2;
+						while ( in_array( $key, $used, true ) ) {
+							$key = $base . '-' . $n;
+							++$n;
+						}
+					}
+					$used[] = $key;
+
 					$clean[] = [
-						'label' => sanitize_text_field( (string) ( $row['label'] ?? '' ) ),
+						'key'   => $key,
+						'label' => $label,
 						'min'   => isset( $row['min'] ) && '' !== $row['min'] ? (float) $row['min'] : 0.0,
 						'max'   => isset( $row['max'] ) && '' !== $row['max'] ? (float) $row['max'] : null,
 						'rate'  => $rate,
 					];
 				}
-				$all       = $repo->all();
+
+				// Sort by min ASC so positional next-tier lookups are stable.
+				usort(
+					$clean,
+					static function ( $a, $b ) {
+						return (float) ( $a['min'] ?? 0 ) <=> (float) ( $b['min'] ?? 0 );
+					}
+				);
+
+				$all          = $repo->all();
 				$all['tiers'] = $clean;
 				$repo->replace_all( $all );
 				break;
@@ -445,11 +486,7 @@ final class Settings {
 					];
 				}
 				$repo->save_section( 'application', [
-					'require_id_upload' => ! empty( $_POST['require_id_upload'] ),
-					'enable_recaptcha'  => ! empty( $_POST['enable_recaptcha'] ),
-					'recaptcha_site'    => sanitize_text_field( (string) ( $_POST['recaptcha_site'] ?? '' ) ),
-					'recaptcha_secret'  => sanitize_text_field( (string) ( $_POST['recaptcha_secret'] ?? '' ) ),
-					'fields'            => $clean,
+					'fields' => $clean,
 				] );
 				break;
 
@@ -477,7 +514,6 @@ final class Settings {
 					'reject_refunded'     => ! empty( $_POST['reject_refunded'] ),
 					'reject_cancelled'    => ! empty( $_POST['reject_cancelled'] ),
 					'reject_failed'       => ! empty( $_POST['reject_failed'] ),
-					'reject_chargeback'   => ! empty( $_POST['reject_chargeback'] ),
 					'fraud_meta_key'      => sanitize_text_field( (string) ( $_POST['fraud_meta_key'] ?? '' ) ),
 					'compliance_meta_key' => sanitize_text_field( (string) ( $_POST['compliance_meta_key'] ?? '' ) ),
 				] );

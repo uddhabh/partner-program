@@ -182,9 +182,9 @@ final class CommissionEngine {
 			return (float) $affiliate['default_commission_rate'];
 		}
 
-		$tier_index = $affiliate['current_tier_id'] ?? null;
-		if ( null !== $tier_index && $tier_index !== '' ) {
-			$tier = TierResolver::tier_at( (int) $tier_index );
+		$tier_key = isset( $affiliate['current_tier_key'] ) ? (string) $affiliate['current_tier_key'] : '';
+		if ( '' !== $tier_key ) {
+			$tier = TierResolver::tier_for_key( $tier_key );
 			if ( $tier && isset( $tier['rate'] ) ) {
 				return (float) $tier['rate'];
 			}

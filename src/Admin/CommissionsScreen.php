@@ -70,7 +70,12 @@ final class CommissionsScreen {
 			echo '<td><input type="checkbox" name="ids[]" value="' . (int) $row['id'] . '" /></td>';
 			echo '<td>#' . (int) $row['id'] . '</td>';
 			echo '<td>' . esc_html( $user ? $user->user_email : '#' . $row['affiliate_id'] ) . '</td>';
-			echo '<td><a href="' . esc_url( get_edit_post_link( (int) $row['order_id'] ) ?: '#' ) . '">#' . (int) $row['order_id'] . '</a></td>';
+			$order_id = isset( $row['order_id'] ) && '' !== $row['order_id'] && null !== $row['order_id'] ? (int) $row['order_id'] : 0;
+			if ( $order_id > 0 ) {
+				echo '<td><a href="' . esc_url( get_edit_post_link( $order_id ) ?: '#' ) . '">#' . $order_id . '</a></td>';
+			} else {
+				echo '<td>—</td>';
+			}
 			echo '<td>' . esc_html( (string) $row['source'] ) . ( $row['coupon_used'] ? ' ★' : '' ) . '</td>';
 			echo '<td>' . esc_html( Money::format( (int) $row['base_amount_cents'], (string) $row['currency'] ) ) . '</td>';
 			echo '<td>' . esc_html( (string) $row['rate'] ) . '</td>';
@@ -131,7 +136,9 @@ final class CommissionsScreen {
 		CommissionRepo::create(
 			[
 				'affiliate_id'      => $affiliate_id,
-				'order_id'          => 0,
+				// NULL keeps each adjustment independent under the unique
+				// (order_id) index; real orders are still 1-row-per-order.
+				'order_id'          => null,
 				'base_amount_cents' => 0,
 				'rate'              => 0,
 				'amount_cents'      => Money::to_cents( $amount ),

@@ -4,7 +4,7 @@ Tags: affiliate, partner, woocommerce, referral, commission
 Requires at least: 6.2
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,18 @@ If both refer to the same affiliate, the source is recorded as `both` and the co
 Generate a payout batch from *Partner Program → Payouts*. Download the CSV, send funds via your preferred method (ACH, PayPal, Zelle, CashApp, Wise, check), then click "Mark paid" so commissions roll to status `paid`.
 
 == Changelog ==
+
+= 1.1.0 =
+* Correctness: enforce one commission row per WooCommerce order via UNIQUE constraint on `pp_commissions.order_id` (manual adjustments are now stored with `order_id = NULL`).
+* Correctness: tiers are matched by stable `key` (auto-generated from label) rather than positional index; reordering tiers no longer silently shifts every affiliate's assigned tier.
+* Correctness: tier list is sorted by Min on save so the "next tier" lookup in the portal is always consistent.
+* Portal: tier-progress amounts in the overview tab now use the configured WooCommerce currency instead of a hardcoded `$`.
+* Portal: payout method selection is validated against the admin's enabled methods list.
+* Tracking: dedup visit logging by IP + referral code within a 1-hour window.
+* WooCommerce: partial-refund adjustments append to the commission notes (and dedup by `refund_id`) instead of overwriting prior history.
+* Updates: built-in updater now also runs on cron-driven `wp_update_plugins` checks, not only admin pageloads.
+* Admin: re-grant administrator capabilities and re-register the Partner role on every plugin upgrade, not just on activation.
+* Settings: removed dead-UI toggles `application.require_id_upload`, `application.enable_recaptcha` (+ key fields) and `exclusions.reject_chargeback`. Per-field "Required" still controls the ID/business proof upload; mark chargebacks via the existing fraud / compliance meta keys.
 
 = 1.0.0 =
 * Initial release.

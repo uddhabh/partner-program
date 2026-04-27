@@ -41,9 +41,9 @@ final class SettingsRepo {
 				'partial_refund_clawback' => true,
 			],
 			'tiers'        => [
-				[ 'min' => 0, 'max' => 4999, 'rate' => 15.0, 'label' => __( 'Bronze', 'partner-program' ) ],
-				[ 'min' => 5000, 'max' => 14999, 'rate' => 18.0, 'label' => __( 'Silver', 'partner-program' ) ],
-				[ 'min' => 15000, 'max' => null, 'rate' => 22.0, 'label' => __( 'Gold', 'partner-program' ) ],
+				[ 'key' => 'bronze', 'min' => 0,     'max' => 4999,  'rate' => 15.0, 'label' => __( 'Bronze', 'partner-program' ) ],
+				[ 'key' => 'silver', 'min' => 5000,  'max' => 14999, 'rate' => 18.0, 'label' => __( 'Silver', 'partner-program' ) ],
+				[ 'key' => 'gold',   'min' => 15000, 'max' => null,  'rate' => 22.0, 'label' => __( 'Gold',   'partner-program' ) ],
 			],
 			'coupon_bonus' => [
 				'enabled'    => true,
@@ -69,11 +69,7 @@ final class SettingsRepo {
 				'enabled_methods'  => [ 'ach', 'paypal', 'zelle', 'cashapp', 'wise' ],
 			],
 			'application'  => [
-				'require_id_upload' => false,
-				'enable_recaptcha'  => false,
-				'recaptcha_site'    => '',
-				'recaptcha_secret'  => '',
-				'fields'            => self::default_application_fields(),
+				'fields' => self::default_application_fields(),
 			],
 			'compliance'   => [
 				'prohibited_terms' => [
@@ -90,11 +86,10 @@ final class SettingsRepo {
 				'auto_suspend_on_violation' => true,
 			],
 			'exclusions'   => [
-				'reject_refunded'  => true,
-				'reject_cancelled' => true,
-				'reject_failed'    => true,
-				'reject_chargeback' => true,
-				'fraud_meta_key'   => '_pp_fraud_risk',
+				'reject_refunded'     => true,
+				'reject_cancelled'    => true,
+				'reject_failed'       => true,
+				'fraud_meta_key'      => '_pp_fraud_risk',
 				'compliance_meta_key' => '_pp_compliance_violation',
 			],
 			'portal'       => [

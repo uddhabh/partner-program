@@ -32,6 +32,7 @@ final class Installer {
 			default_commission_rate DECIMAL(7,4) NULL,
 			tier_id BIGINT UNSIGNED NULL,
 			current_tier_id BIGINT UNSIGNED NULL,
+			current_tier_key VARCHAR(40) NULL,
 			payout_method VARCHAR(40) NULL,
 			payout_details LONGTEXT NULL,
 			agreement_version_accepted BIGINT UNSIGNED NULL,
@@ -79,10 +80,13 @@ final class Installer {
 			KEY converted_order_id (converted_order_id)
 		) {$charset_collate};";
 
+		// order_id is NULLABLE because manual adjustments are not tied to an order.
+		// MySQL UNIQUE indexes treat each NULL as distinct, so adjustments coexist
+		// while real orders get one-row-per-order enforcement.
 		$tables[] = "CREATE TABLE {$prefix}commissions (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			affiliate_id BIGINT UNSIGNED NOT NULL,
-			order_id BIGINT UNSIGNED NOT NULL,
+			order_id BIGINT UNSIGNED NULL,
 			order_item_id BIGINT UNSIGNED NULL,
 			base_amount_cents BIGINT NOT NULL DEFAULT 0,
 			rate DECIMAL(7,4) NOT NULL DEFAULT 0,
@@ -99,7 +103,7 @@ final class Installer {
 			updated_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			KEY affiliate_id (affiliate_id),
-			KEY order_id (order_id),
+			UNIQUE KEY uniq_order_id (order_id),
 			KEY status (status),
 			KEY hold_release_at (hold_release_at),
 			KEY payout_id (payout_id)
@@ -179,5 +183,135 @@ final class Installer {
 		}
 
 		( new SettingsRepo() )->ensure_defaults();
+	}
+
+	/**
+	 * Version-aware schema/data migrations. Idempotent, safe to call repeatedly.
+	 * Triggered from Plugin::maybe_run_upgrades() with the previously-installed
+	 * version so each block runs at most once per site.
+	 */
+	public static function migrate( string $from_version ): void {
+		if ( '' === $from_version || '0' === $from_version ) {
+			$from_version = '0.0.0';
+		}
+
+		if ( version_compare( $from_version, '1.1.0', '<' ) ) {
+			self::migrate_to_1_1_0();
+		}
+	}
+
+	/**
+	 * 1.1.0 — UNIQUE constraint on commissions.order_id (manual adjustments
+	 * become NULL), tier-key column on affiliates, settings cleanup.
+	 */
+	private static function migrate_to_1_1_0(): void {
+		global $wpdb;
+
+		$commissions = $wpdb->prefix . 'pp_commissions';
+		$affiliates  = $wpdb->prefix . 'pp_affiliates';
+
+		// Move adjustment rows from order_id=0 to NULL BEFORE adding the unique index.
+		$wpdb->query( "UPDATE {$commissions} SET order_id = NULL WHERE order_id = 0 AND source = 'adjustment'" ); // phpcs:ignore WordPress.DB
+
+		// Make order_id nullable if not already.
+		$col = $wpdb->get_row( $wpdb->prepare( "SHOW COLUMNS FROM {$commissions} LIKE %s", 'order_id' ), ARRAY_A );
+		if ( $col && false === stripos( (string) ( $col['Null'] ?? '' ), 'YES' ) ) {
+			$wpdb->query( "ALTER TABLE {$commissions} MODIFY order_id BIGINT UNSIGNED NULL" ); // phpcs:ignore WordPress.DB
+		}
+
+		// Swap the non-unique KEY order_id for UNIQUE KEY uniq_order_id.
+		$indexes  = $wpdb->get_results( "SHOW INDEX FROM {$commissions}", ARRAY_A ) ?: [];
+		$has_uniq = false;
+		$has_old  = false;
+		foreach ( $indexes as $idx ) {
+			if ( 'uniq_order_id' === ( $idx['Key_name'] ?? '' ) ) {
+				$has_uniq = true;
+			}
+			if ( 'order_id' === ( $idx['Key_name'] ?? '' ) && 1 === (int) ( $idx['Non_unique'] ?? 1 ) ) {
+				$has_old = true;
+			}
+		}
+		if ( $has_old ) {
+			$wpdb->query( "ALTER TABLE {$commissions} DROP INDEX order_id" ); // phpcs:ignore WordPress.DB
+		}
+		if ( ! $has_uniq ) {
+			// May fail if duplicate (order_id, source=referral) rows exist from a buggy
+			// pre-1.1 install. We swallow the error rather than block the upgrade; admins
+			// can resolve duplicates and re-run via WP-CLI: `wp partner-program migrate`.
+			$wpdb->hide_errors();
+			$wpdb->query( "ALTER TABLE {$commissions} ADD UNIQUE KEY uniq_order_id (order_id)" ); // phpcs:ignore WordPress.DB
+			$wpdb->show_errors();
+		}
+
+		// Add current_tier_key column to affiliates.
+		$col = $wpdb->get_row( $wpdb->prepare( "SHOW COLUMNS FROM {$affiliates} LIKE %s", 'current_tier_key' ), ARRAY_A );
+		if ( ! $col ) {
+			$wpdb->query( "ALTER TABLE {$affiliates} ADD COLUMN current_tier_key VARCHAR(40) NULL AFTER current_tier_id" ); // phpcs:ignore WordPress.DB
+		}
+
+		// Backfill stable keys + sort onto stored tier settings, and strip dead UI keys.
+		self::cleanup_settings_for_1_1_0();
+
+		// Recompute everyone's tier under the new key-based logic.
+		if ( class_exists( \PartnerProgram\Domain\TierResolver::class ) ) {
+			\PartnerProgram\Domain\TierResolver::recalculate_all();
+		}
+	}
+
+	private static function cleanup_settings_for_1_1_0(): void {
+		$option = SettingsRepo::OPTION;
+		$stored = get_option( $option, [] );
+		if ( ! is_array( $stored ) ) {
+			return;
+		}
+
+		// Backfill tier keys + sort by min ASC for stable ordering.
+		if ( isset( $stored['tiers'] ) && is_array( $stored['tiers'] ) ) {
+			$used   = [];
+			$tiers  = [];
+			foreach ( array_values( $stored['tiers'] ) as $i => $t ) {
+				if ( ! is_array( $t ) ) {
+					continue;
+				}
+				if ( empty( $t['key'] ) ) {
+					$base = sanitize_title( (string) ( $t['label'] ?? '' ) );
+					if ( '' === $base ) {
+						$base = 'tier-' . ( $i + 1 );
+					}
+					$key = $base;
+					$n   = 2;
+					while ( in_array( $key, $used, true ) ) {
+						$key = $base . '-' . $n;
+						++$n;
+					}
+					$t['key'] = $key;
+				}
+				$used[]  = (string) $t['key'];
+				$tiers[] = $t;
+			}
+			usort(
+				$tiers,
+				static function ( $a, $b ) {
+					return (float) ( $a['min'] ?? 0 ) <=> (float) ( $b['min'] ?? 0 );
+				}
+			);
+			$stored['tiers'] = $tiers;
+		}
+
+		// Drop dead UI keys (require_id_upload, recaptcha_*, reject_chargeback).
+		if ( isset( $stored['application'] ) && is_array( $stored['application'] ) ) {
+			unset(
+				$stored['application']['require_id_upload'],
+				$stored['application']['enable_recaptcha'],
+				$stored['application']['recaptcha_site'],
+				$stored['application']['recaptcha_secret']
+			);
+		}
+		if ( isset( $stored['exclusions'] ) && is_array( $stored['exclusions'] ) ) {
+			unset( $stored['exclusions']['reject_chargeback'] );
+		}
+
+		update_option( $option, $stored, false );
+		( new SettingsRepo() )->reset_cache();
 	}
 }

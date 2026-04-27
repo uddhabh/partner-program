@@ -163,10 +163,22 @@ final class Portal {
 			exit;
 		}
 
-		$method  = isset( $_POST['payout_method'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['payout_method'] ) ) : '';
+		$method  = isset( $_POST['payout_method'] ) ? sanitize_key( wp_unslash( (string) $_POST['payout_method'] ) ) : '';
 		$details = isset( $_POST['payout_details'] ) && is_array( $_POST['payout_details'] )
 			? array_map( 'sanitize_text_field', array_map( 'wp_unslash', (array) $_POST['payout_details'] ) )
 			: [];
+
+		$settings = new SettingsRepo();
+		$enabled  = (array) $settings->get( 'hold_payouts.enabled_methods', [] );
+		if ( '' === $method || ! in_array( $method, $enabled, true ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					[ 'tab' => 'payouts', 'saved' => 0, 'pp_error' => 'invalid_method' ],
+					wp_get_referer() ?: home_url( '/' )
+				)
+			);
+			exit;
+		}
 
 		AffiliateRepo::update(
 			(int) $affiliate['id'],

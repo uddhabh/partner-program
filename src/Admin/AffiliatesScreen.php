@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace PartnerProgram\Admin;
 
 use PartnerProgram\Domain\AffiliateRepo;
+use PartnerProgram\Domain\TierResolver;
 use PartnerProgram\Support\Capabilities;
 use PartnerProgram\Support\Money;
 
@@ -65,7 +66,13 @@ final class AffiliatesScreen {
 			echo '<td>' . esc_html( $user ? $user->user_email : '—' ) . '</td>';
 			echo '<td><code>' . esc_html( (string) $row['referral_code'] ) . '</code></td>';
 			echo '<td>' . esc_html( (string) $row['status'] ) . '</td>';
-			echo '<td>' . esc_html( null !== $row['current_tier_id'] ? '#' . $row['current_tier_id'] : '—' ) . '</td>';
+			$tier_key   = isset( $row['current_tier_key'] ) ? (string) $row['current_tier_key'] : '';
+			$tier_label = '—';
+			if ( '' !== $tier_key ) {
+				$tier       = TierResolver::tier_for_key( $tier_key );
+				$tier_label = $tier && ! empty( $tier['label'] ) ? (string) $tier['label'] : $tier_key;
+			}
+			echo '<td>' . esc_html( $tier_label ) . '</td>';
 			echo '<td>' . esc_html( Money::format( $pending ) ) . '</td>';
 			echo '<td>' . esc_html( Money::format( $approved ) ) . '</td>';
 			echo '<td>' . esc_html( Money::format( $paid ) ) . '</td>';
