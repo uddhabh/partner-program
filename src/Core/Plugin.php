@@ -24,6 +24,7 @@ use PartnerProgram\Support\Encryption;
 use PartnerProgram\Support\Logger;
 use PartnerProgram\Support\Privacy;
 use PartnerProgram\Support\SettingsRepo;
+use PartnerProgram\Support\Updater;
 use PartnerProgram\Tracking\Tracker;
 use PartnerProgram\Woo\OrderHooks;
 use PartnerProgram\Woo\CouponManager;
@@ -69,6 +70,10 @@ final class Plugin {
 		$this->boot_subsystems();
 
 		Privacy::register();
+
+		if ( is_admin() ) {
+			Updater::register();
+		}
 
 		if ( defined( 'WP_CLI' ) && \WP_CLI ) {
 			Commands::register();
