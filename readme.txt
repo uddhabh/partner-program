@@ -20,7 +20,7 @@ Highlights:
 * Coupon attribution with optional bonus rate when an attributed coupon is used.
 * Configurable hold period (e.g. 15 days) before commissions become payable.
 * Subtotal-after-discount calculation by default; shipping and tax exclusions are toggleable.
-* Auto-rejection on refunds, chargebacks, cancellations, and admin-flagged fraud / compliance violations.
+* Auto-rejection on refunds, cancellations, and failed orders. Chargebacks and other risky orders are excluded by flagging them with the configured fraud / compliance order-meta keys.
 * Built-in partner portal: links + codes, marketing materials, compliance agreement (versioned), commissions table, payout history.
 * Built-in application form with custom field builder; no extra form plugin needed.
 * Manual payout batch generator with per-method CSV export.

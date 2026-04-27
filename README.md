@@ -10,7 +10,7 @@ Tiered commissions, coupon attribution, hold periods, manual payouts, compliance
 - **Coupon attribution** with optional bonus rate when an attributed coupon is used (default +2%).
 - **Configurable hold period** (default 15 days) before commissions become payable.
 - **Subtotal-after-discount** calculation by default; shipping and tax exclusions are toggleable.
-- **Auto-rejection** on refunds, chargebacks, cancellations, and admin-flagged fraud or compliance violations. Partial refunds proportionally clawback.
+- **Auto-rejection** on refunds, cancellations, and failed orders; chargebacks and other risky orders are excluded by flagging them with the configured fraud / compliance order-meta keys (`_pp_fraud_risk`, `_pp_compliance_violation` by default). Partial refunds proportionally clawback.
 - **Built-in partner portal**: overview with tier progress, links + codes, marketing materials CPT, versioned compliance agreement with re-acceptance, commissions table, payout history with threshold progress.
 - **Built-in application form** with custom field builder, honeypot, rate-limit, private file uploads — no extra form plugin needed.
 - **Manual payout** batch generator with per-method CSV export. Admin marks paid → commissions roll to `paid`.
