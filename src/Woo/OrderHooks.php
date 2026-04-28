@@ -240,11 +240,7 @@ final class OrderHooks {
 			// current (possibly already-reduced) amount_cents — otherwise a
 			// second partial refund decays geometrically off the result of
 			// the first one.
-			$original = (int) ( $row['original_amount_cents'] ?? 0 );
-			if ( $original <= 0 ) {
-				$original = (int) round( (int) $row['base_amount_cents'] * (float) $row['rate'] / 100 );
-			}
-			$new_amount = (int) round( $original * $ratio );
+			$new_amount = (int) round( (int) $row['original_amount_cents'] * $ratio );
 			$entry      = sprintf( 'Adjusted for partial refund (%s, ratio=%.4f)', $marker, $ratio );
 			$notes      = '' === $prior ? $entry : trim( $prior ) . "\n" . $entry;
 			CommissionRepo::update(

@@ -96,19 +96,14 @@ final class Plugin {
 		if ( PARTNER_PROGRAM_VERSION === $installed ) {
 			return;
 		}
+		// dbDelta is idempotent and adds any new columns/tables a release
+		// introduced. Caps, encryption-key, and cron-event registration
+		// are likewise idempotent so existing installs pick up anything
+		// new without going through activate().
 		Installer::install();
-		Installer::migrate( $installed );
-		// New caps and roles can be introduced across versions; re-apply on upgrade
-		// (not just activation) so admins don't lose access after a plain update.
 		Capabilities::register_role();
 		Capabilities::grant_admin_caps();
-		// 1.2.0 introduced a dedicated encryption key (was previously
-		// derived from wp_salt('auth'), which made stored payout details
-		// brittle to admins rotating their salts). Idempotent on re-runs.
 		Encryption::ensure_key();
-		// New cron events introduced in later releases (e.g. 1.2.0's prune
-		// cron) need scheduling on existing installs that never went through
-		// activate(). The helper is idempotent.
 		Activator::schedule_crons();
 		update_option( 'partner_program_db_version', PARTNER_PROGRAM_VERSION );
 	}
