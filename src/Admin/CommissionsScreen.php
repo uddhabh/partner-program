@@ -170,6 +170,12 @@ final class CommissionsScreen {
 		if ( ! $affiliate_id || 0.0 === $amount ) {
 			return;
 		}
+		// Refuse adjustments against a non-existent affiliate id so we don't
+		// leave orphan commission rows that no UI can clean up.
+		if ( ! AffiliateRepo::find( $affiliate_id ) ) {
+			wp_safe_redirect( add_query_arg( 'done', 0, admin_url( 'admin.php?page=partner-program-commissions' ) ) );
+			exit;
+		}
 		$commission_id = CommissionRepo::create(
 			[
 				'affiliate_id'      => $affiliate_id,

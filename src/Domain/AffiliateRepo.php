@@ -92,7 +92,19 @@ final class AffiliateRepo {
 		$base = substr( $base, 0, 12 );
 		$try  = $base;
 		$i    = 1;
+		// Cap deterministic suffixes so a pathological codebase state can't
+		// stall a request indefinitely — fall back to a random suffix and
+		// keep going. The caller's INSERT is still guarded by the
+		// referral_code UNIQUE KEY, so a stale find_by_code() snapshot
+		// can't actually duplicate-insert.
 		while ( null !== self::find_by_code( $try ) ) {
+			if ( $i > 50 ) {
+				$try = $base . '-' . strtolower( wp_generate_password( 6, false, false ) );
+				if ( null === self::find_by_code( $try ) ) {
+					break;
+				}
+				continue;
+			}
 			$try = $base . $i;
 			++$i;
 		}

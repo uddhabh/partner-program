@@ -555,6 +555,15 @@ final class Settings {
 			exit;
 		}
 
+		// Cap the import payload at 1 MB. The settings blob is a small JSON
+		// tree (KBs, not MBs); anything bigger is either malformed or hostile,
+		// and a real export will never come close to this ceiling.
+		$size = (int) ( filesize( $tmp ) ?: 0 );
+		if ( $size <= 0 || $size > 1024 * 1024 ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=partner-program-settings&tab=iotools&import_error=1' ) );
+			exit;
+		}
+
 		$json = file_get_contents( $tmp );
 		$data = $json ? json_decode( (string) $json, true ) : null;
 		if ( ! is_array( $data ) ) {

@@ -231,7 +231,11 @@ final class OrderHooks {
 			if ( in_array( $row['status'], [ 'paid', 'rejected' ], true ) ) {
 				continue;
 			}
-			$marker = sprintf( 'refund_id=%d', $refund_id );
+			// Wrap the refund-id in delimiters so `refund_id=10` doesn't
+			// false-match against an earlier `refund_id=100` already in
+			// notes (substring containment) and silently skip the second
+			// adjustment.
+			$marker = sprintf( '[refund_id=%d]', $refund_id );
 			$prior  = (string) ( $row['notes'] ?? '' );
 			if ( '' !== $prior && false !== strpos( $prior, $marker ) ) {
 				continue; // Same refund already applied; idempotent on retries.
@@ -241,7 +245,7 @@ final class OrderHooks {
 			// second partial refund decays geometrically off the result of
 			// the first one.
 			$new_amount = (int) round( (int) $row['original_amount_cents'] * $ratio );
-			$entry      = sprintf( 'Adjusted for partial refund (%s, ratio=%.4f)', $marker, $ratio );
+			$entry      = sprintf( 'Adjusted for partial refund %s (ratio=%.4f)', $marker, $ratio );
 			$notes      = '' === $prior ? $entry : trim( $prior ) . "\n" . $entry;
 			CommissionRepo::update(
 				(int) $row['id'],
