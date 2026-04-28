@@ -34,6 +34,10 @@ final class AffiliatesScreen {
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Affiliates', 'partner-program' ) . '</h1>';
 
+		if ( isset( $_GET['done'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Updated.', 'partner-program' ) . '</p></div>';
+		}
+
 		echo '<form method="get"><input type="hidden" name="page" value="partner-program-affiliates" />';
 		echo '<select name="status">';
 		foreach ( [ '' => __( 'All statuses', 'partner-program' ), 'pending' => 'Pending', 'approved' => 'Approved', 'suspended' => 'Suspended', 'rejected' => 'Rejected' ] as $val => $label ) {
@@ -84,7 +88,10 @@ final class AffiliatesScreen {
 			echo '<td>' . esc_html( Money::format( $approved ) ) . '</td>';
 			echo '<td>' . esc_html( Money::format( $paid ) ) . '</td>';
 			echo '<td>';
-			$base = admin_url( 'admin-post.php' );
+			// Link back to this same screen rather than admin-post.php — we
+			// don't register an admin_post_pp_affiliate_* hook, the action
+			// is handled inline by handle_actions() during render().
+			$base = admin_url( 'admin.php?page=partner-program-affiliates' );
 			$mk   = static fn( string $action, string $label ) => sprintf(
 				'<a href="%s" style="margin-right:6px;">%s</a>',
 				esc_url( wp_nonce_url(
@@ -114,16 +121,26 @@ final class AffiliatesScreen {
 		}
 		$id = (int) $_GET['id']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		check_admin_referer( 'pp_affiliate_action_' . $id );
-		$action = sanitize_key( (string) $_GET['action'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$action  = sanitize_key( (string) $_GET['action'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$handled = false;
 		switch ( $action ) {
 			case 'pp_affiliate_approve':
 				AffiliateRepo::update( $id, [ 'status' => 'approved' ] );
 				do_action( 'partner_program_affiliate_approved', $id );
+				$handled = true;
 				break;
 			case 'pp_affiliate_suspend':
 				AffiliateRepo::update( $id, [ 'status' => 'suspended' ] );
 				do_action( 'partner_program_affiliate_suspended', $id );
+				$handled = true;
 				break;
+		}
+		if ( $handled ) {
+			// Redirect to drop the action+nonce from the URL so a browser
+			// refresh doesn't re-fire the action while the nonce is still
+			// valid.
+			wp_safe_redirect( add_query_arg( 'done', 1, admin_url( 'admin.php?page=partner-program-affiliates' ) ) );
+			exit;
 		}
 	}
 }
