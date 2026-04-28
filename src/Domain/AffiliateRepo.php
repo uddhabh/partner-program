@@ -26,6 +26,30 @@ final class AffiliateRepo {
 		return $row ?: null;
 	}
 
+	/**
+	 * Bulk-load affiliates by id, returned indexed by id. Use this from
+	 * list-table screens to avoid one query per row.
+	 *
+	 * @param int[] $ids
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function find_many( array $ids ): array {
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ), static fn ( int $i ): bool => $i > 0 ) ) );
+		if ( ! $ids ) {
+			return [];
+		}
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql          = 'SELECT * FROM ' . self::table() . " WHERE id IN ({$placeholders})";
+		$rows         = $wpdb->get_results( $wpdb->prepare( $sql, ...$ids ), ARRAY_A ) ?: []; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$out = [];
+		foreach ( $rows as $row ) {
+			$out[ (int) $row['id'] ] = $row;
+		}
+		return $out;
+	}
+
 	public static function find_by_user( int $user_id ): ?array {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE user_id = %d', $user_id ), ARRAY_A );

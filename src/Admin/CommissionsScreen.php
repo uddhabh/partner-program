@@ -29,6 +29,9 @@ final class CommissionsScreen {
 		$status = isset( $_GET['status'] ) ? sanitize_key( (string) $_GET['status'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$rows   = CommissionRepo::search( [ 'status' => $status, 'per_page' => 100 ] );
 
+		$affiliates = AffiliateRepo::find_many( array_map( static fn ( $r ): int => (int) $r['affiliate_id'], $rows ) );
+		cache_users( array_values( array_filter( array_map( static fn ( $a ): int => (int) ( $a['user_id'] ?? 0 ), $affiliates ) ) ) );
+
 		echo '<div class="wrap"><h1>' . esc_html__( 'Commissions', 'partner-program' ) . '</h1>';
 
 		if ( isset( $_GET['done'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -64,7 +67,7 @@ final class CommissionsScreen {
 			. '</tr></thead><tbody>';
 
 		foreach ( $rows as $row ) {
-			$aff = AffiliateRepo::find( (int) $row['affiliate_id'] );
+			$aff  = $affiliates[ (int) $row['affiliate_id'] ] ?? null;
 			$user = $aff ? get_userdata( (int) $aff['user_id'] ) : null;
 			echo '<tr>';
 			echo '<td><input type="checkbox" name="ids[]" value="' . (int) $row['id'] . '" /></td>';
