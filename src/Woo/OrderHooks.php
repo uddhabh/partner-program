@@ -35,11 +35,13 @@ final class OrderHooks {
 		add_action( 'woocommerce_order_status_failed', [ $this, 'reject_on_status' ], 10, 1 );
 
 		// WooCommerce Subscriptions: stamp attribution onto renewal orders
-		// from the parent subscription / parent order. Only registered
-		// when WCS is active so we don't add noise to the hook chain.
-		if ( class_exists( 'WC_Subscription' ) ) {
-			add_action( 'wcs_renewal_order_created', [ $this, 'inherit_subscription_attribution' ], 20, 2 );
-		}
+		// from the parent subscription / parent order. Registered
+		// unconditionally — gating on `class_exists( 'WC_Subscription' )`
+		// here was load-order-dependent and silently dropped the listener
+		// because WCS doesn't load until plugins_loaded priority 10 and we
+		// boot at priority 5. The hook is never fired without WCS, so an
+		// always-on add_action() is free.
+		add_action( 'wcs_renewal_order_created', [ $this, 'inherit_subscription_attribution' ], 20, 2 );
 
 		add_filter( 'partner_program_resolve_attribution', [ $this, 'resolve_attribution' ], 10, 2 );
 	}
