@@ -13,6 +13,7 @@ use PartnerProgram\Admin\AdminMenu;
 use PartnerProgram\Admin\Settings;
 use PartnerProgram\Application\ApplicationForm;
 use PartnerProgram\Application\ApplicationReview;
+use PartnerProgram\Application\PrivateUploads;
 use PartnerProgram\Cli\Commands;
 use PartnerProgram\Compliance\AgreementManager;
 use PartnerProgram\Compliance\ProhibitedTermsScanner;
@@ -118,6 +119,7 @@ final class Plugin {
 		( new Settings() )->register();
 		( new ApplicationForm() )->register();
 		( new ApplicationReview() )->register();
+		( new PrivateUploads() )->register();
 		( new Portal() )->register();
 		( new Tracker() )->register();
 		( new CouponManager() )->register();

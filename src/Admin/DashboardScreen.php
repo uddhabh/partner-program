@@ -12,6 +12,7 @@ namespace PartnerProgram\Admin;
 use PartnerProgram\Domain\AffiliateRepo;
 use PartnerProgram\Domain\CommissionRepo;
 use PartnerProgram\Domain\PayoutRepo;
+use PartnerProgram\Support\Encryption;
 use PartnerProgram\Support\Money;
 
 defined( 'ABSPATH' ) || exit;
@@ -20,6 +21,12 @@ final class DashboardScreen {
 
 	public static function render(): void {
 		global $wpdb;
+
+		if ( ! Encryption::is_available() ) {
+			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Encryption unavailable.', 'partner-program' ) . '</strong> '
+				. esc_html__( 'The PHP sodium extension is not loaded on this server, so partners cannot save payout details. Ask your host to enable the sodium extension (bundled with PHP 7.2+).', 'partner-program' )
+				. '</p></div>';
+		}
 		$total_affiliates = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . AffiliateRepo::table() );
 		$active           = (int) $wpdb->get_var( "SELECT COUNT(*) FROM " . AffiliateRepo::table() . " WHERE status = 'approved'" );
 		$pending_apps     = (int) $wpdb->get_var( "SELECT COUNT(*) FROM " . $wpdb->prefix . "pp_applications WHERE status = 'pending'" );

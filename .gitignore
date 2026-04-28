@@ -6,4 +6,5 @@ vendor/
 .idea/
 .vscode/
 dist/
+PLAN-*.md
 

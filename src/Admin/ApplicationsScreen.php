@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace PartnerProgram\Admin;
 
+use PartnerProgram\Application\PrivateUploads;
 use PartnerProgram\Domain\ApplicationRepo;
 use PartnerProgram\Support\Capabilities;
 use PartnerProgram\Support\SettingsRepo;
@@ -89,13 +90,16 @@ final class ApplicationsScreen {
 			echo '<tr><th>' . esc_html( $label ) . '</th><td>' . self::format_value( $v, $field ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		foreach ( $uploads as $k => $attachment_id ) {
-			$field = $fields_by_k[ (string) $k ] ?? [];
-			$label = self::humanize_label( (string) $k, $field );
-			$url   = wp_get_attachment_url( (int) $attachment_id );
-			if ( $url ) {
+			$field         = $fields_by_k[ (string) $k ] ?? [];
+			$label         = self::humanize_label( (string) $k, $field );
+			$attachment_id = (int) $attachment_id;
+			// Always go through the auth-gated proxy. Direct attachment URLs
+			// would (a) bypass the cap check and (b) for pre-1.2 uploads sit
+			// in the public uploads tree.
+			if ( $attachment_id > 0 && get_post( $attachment_id ) ) {
 				$value = sprintf(
 					'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
-					esc_url( $url ),
+					esc_url( PrivateUploads::get_proxy_url( $attachment_id ) ),
 					esc_html__( 'View upload', 'partner-program' )
 				);
 			} else {

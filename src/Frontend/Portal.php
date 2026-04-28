@@ -15,6 +15,7 @@ use PartnerProgram\Domain\CommissionRepo;
 use PartnerProgram\Domain\PayoutRepo;
 use PartnerProgram\Domain\TierResolver;
 use PartnerProgram\Support\Capabilities;
+use PartnerProgram\Support\Encryption;
 use PartnerProgram\Support\Money;
 use PartnerProgram\Support\SettingsRepo;
 use PartnerProgram\Support\Template;
@@ -162,11 +163,36 @@ final class Portal {
 			exit;
 		}
 
+		// Refuse to write payout PII when libsodium is unavailable: storing
+		// it as base64 would be worse than telling the partner to come back
+		// once the host enables sodium.
+		if ( ! Encryption::is_available() ) {
+			wp_safe_redirect(
+				add_query_arg(
+					[ 'tab' => 'payouts', 'saved' => 0, 'pp_error' => 'encryption_unavailable' ],
+					wp_get_referer() ?: home_url( '/' )
+				)
+			);
+			exit;
+		}
+
+		try {
+			$encrypted = AffiliateRepo::encrypt_payout_details( $details );
+		} catch ( \RuntimeException $e ) {
+			wp_safe_redirect(
+				add_query_arg(
+					[ 'tab' => 'payouts', 'saved' => 0, 'pp_error' => 'encryption_unavailable' ],
+					wp_get_referer() ?: home_url( '/' )
+				)
+			);
+			exit;
+		}
+
 		AffiliateRepo::update(
 			(int) $affiliate['id'],
 			[
 				'payout_method'  => $method,
-				'payout_details' => AffiliateRepo::encrypt_payout_details( $details ),
+				'payout_details' => $encrypted,
 			]
 		);
 		wp_safe_redirect( add_query_arg( [ 'tab' => 'payouts', 'saved' => 1 ], wp_get_referer() ?: home_url( '/' ) ) );

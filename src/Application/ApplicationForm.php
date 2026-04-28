@@ -172,21 +172,28 @@ final class ApplicationForm {
 			'png'  => 'image/png',
 		];
 
-		$attachment_id = media_handle_upload(
-			$key,
-			0,
-			[],
-			[
-				'mimes'                    => $allowed,
-				'test_form'                => false,
-				'unique_filename_callback' => null,
-			]
+		$original = isset( $_FILES[ $key ]['name'] ) ? (string) $_FILES[ $key ]['name'] : '';
+
+		$attachment_id = PrivateUploads::with_private_dir(
+			static function ( callable $rename ) use ( $key, $allowed ) {
+				return media_handle_upload(
+					$key,
+					0,
+					[],
+					[
+						'mimes'                    => $allowed,
+						'test_form'                => false,
+						'unique_filename_callback' => $rename,
+					]
+				);
+			}
 		);
-		if ( is_wp_error( $attachment_id ) ) {
+
+		if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
 			return null;
 		}
 
-		update_post_meta( $attachment_id, '_pp_private', '1' );
+		PrivateUploads::mark_private( (int) $attachment_id, $original );
 		return (int) $attachment_id;
 	}
 

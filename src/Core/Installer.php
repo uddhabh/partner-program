@@ -196,10 +196,42 @@ final class Installer {
 	 * @phpstan-param string $from_version
 	 */
 	public static function migrate( string $from_version ): void {
-		// Reserved for future migrations:
-		// if ( version_compare( $from_version, 'X.Y.Z', '<' ) ) {
-		//     self::migrate_to_X_Y_Z();
-		// }
-		unset( $from_version );
+		if ( '' === $from_version || '0' === $from_version ) {
+			$from_version = '0.0.0';
+		}
+
+		if ( version_compare( $from_version, '1.2.0', '<' ) ) {
+			self::migrate_to_1_2_0();
+		}
+	}
+
+	/**
+	 * 1.2.0 — Mark all attachments referenced by historical applications as
+	 * private uploads so the new admin-only download proxy will serve them.
+	 * Files themselves are NOT moved (existing URLs may be linked elsewhere
+	 * and we want to keep this migration cheap & non-destructive); only new
+	 * uploads land in the locked-down `partner-program-private/` subdir.
+	 */
+	private static function migrate_to_1_2_0(): void {
+		global $wpdb;
+
+		$apps_table = $wpdb->prefix . 'pp_applications';
+		$rows       = $wpdb->get_col( "SELECT uploaded_ids FROM {$apps_table} WHERE uploaded_ids IS NOT NULL AND uploaded_ids != ''" ) ?: []; // phpcs:ignore WordPress.DB
+		foreach ( $rows as $blob ) {
+			$decoded = json_decode( (string) $blob, true );
+			if ( ! is_array( $decoded ) ) {
+				continue;
+			}
+			foreach ( $decoded as $attachment_id ) {
+				$attachment_id = (int) $attachment_id;
+				if ( $attachment_id <= 0 ) {
+					continue;
+				}
+				if ( '1' === (string) get_post_meta( $attachment_id, '_pp_private', true ) ) {
+					continue;
+				}
+				update_post_meta( $attachment_id, '_pp_private', '1' );
+			}
+		}
 	}
 }

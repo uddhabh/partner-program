@@ -44,6 +44,79 @@ final class CommissionRepo {
 		return (int) $wpdb->insert_id;
 	}
 
+	/**
+	 * Insert a row for a real Woo order, idempotent against the
+	 * UNIQUE KEY (order_id) constraint. Use this — and not create() —
+	 * for any commission tied to an `order_id`; concurrent payment
+	 * webhooks otherwise race each other and the second insert silently
+	 * fails while the first hook fires twice.
+	 *
+	 * Returns ['id' => int, 'created' => bool]. 'created' is false when
+	 * we hit the unique-index conflict, in which case 'id' is the
+	 * existing row's id (handy for logging) and the caller MUST NOT fire
+	 * "commission recorded" hooks again.
+	 *
+	 * @param array<string, mixed> $data
+	 * @return array{id:int, created:bool}
+	 */
+	public static function create_for_order( array $data ): array {
+		global $wpdb;
+		$now  = current_time( 'mysql', true );
+		$data = array_merge(
+			[
+				'status'     => 'pending',
+				'created_at' => $now,
+				'updated_at' => $now,
+			],
+			$data
+		);
+
+		// Manual adjustments don't have an order_id; they go through
+		// create() and aren't covered by the unique-index race.
+		if ( empty( $data['order_id'] ) ) {
+			$id = self::create( $data );
+			return [ 'id' => $id, 'created' => $id > 0 ];
+		}
+
+		$columns      = [];
+		$placeholders = [];
+		$values       = [];
+		foreach ( $data as $col => $val ) {
+			if ( ! preg_match( '/^[A-Za-z_][A-Za-z0-9_]*$/', (string) $col ) ) {
+				continue; // Defence-in-depth against caller passing odd keys.
+			}
+			$columns[] = '`' . $col . '`';
+			if ( null === $val ) {
+				$placeholders[] = 'NULL';
+				continue;
+			}
+			if ( is_int( $val ) ) {
+				$placeholders[] = '%d';
+			} elseif ( is_float( $val ) ) {
+				$placeholders[] = '%f';
+			} else {
+				$placeholders[] = '%s';
+				$val            = (string) $val;
+			}
+			$values[] = $val;
+		}
+
+		// `id = LAST_INSERT_ID(id)` is the standard idiom: on a duplicate
+		// it makes mysql_insert_id() return the existing row's id and
+		// reports rows_affected = 0; on a fresh insert rows_affected = 1.
+		$sql = 'INSERT INTO ' . self::table() . ' (' . implode( ', ', $columns ) . ') '
+			. 'VALUES (' . implode( ', ', $placeholders ) . ') '
+			. 'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)';
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $values ? $wpdb->prepare( $sql, ...$values ) : $sql );
+
+		return [
+			'id'      => (int) $wpdb->insert_id,
+			'created' => 1 === (int) $wpdb->rows_affected,
+		];
+	}
+
 	public static function update( int $id, array $data ): void {
 		global $wpdb;
 		$data['updated_at'] = current_time( 'mysql', true );

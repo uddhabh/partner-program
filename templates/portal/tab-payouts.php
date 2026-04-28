@@ -8,11 +8,14 @@
  */
 defined( 'ABSPATH' ) || exit;
 use PartnerProgram\Domain\AffiliateRepo;
+use PartnerProgram\Support\Encryption;
 use PartnerProgram\Support\Money;
 
-$details        = AffiliateRepo::decrypt_payout_details( $affiliate['payout_details'] ?? null );
-$current_method = (string) ( $affiliate['payout_method'] ?? '' );
-$progress_pct   = $min_threshold_cents > 0 ? min( 100, (int) round( ( $approved_cents / $min_threshold_cents ) * 100 ) ) : 100;
+$details         = AffiliateRepo::decrypt_payout_details( $affiliate['payout_details'] ?? null );
+$current_method  = (string) ( $affiliate['payout_method'] ?? '' );
+$progress_pct    = $min_threshold_cents > 0 ? min( 100, (int) round( ( $approved_cents / $min_threshold_cents ) * 100 ) ) : 100;
+$encryption_ok   = Encryption::is_available();
+$disabled_attr   = $encryption_ok ? '' : ' disabled';
 ?>
 <h3><?php esc_html_e( 'Payout method', 'partner-program' ); ?></h3>
 <?php if ( ! empty( $_GET['saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
@@ -24,6 +27,11 @@ $pp_error = isset( $_GET['pp_error'] ) ? sanitize_key( (string) wp_unslash( $_GE
 if ( 'invalid_method' === $pp_error ) :
 	?>
 	<div class="pp-alert pp-alert-error"><?php esc_html_e( 'Please choose one of the enabled payout methods.', 'partner-program' ); ?></div>
+<?php elseif ( 'encryption_unavailable' === $pp_error ) : ?>
+	<div class="pp-alert pp-alert-error"><?php esc_html_e( 'Payout details could not be saved because secure storage is currently unavailable on this site. Please try again later or contact support.', 'partner-program' ); ?></div>
+<?php endif; ?>
+<?php if ( ! $encryption_ok ) : ?>
+	<div class="pp-alert pp-alert-error"><?php esc_html_e( 'Payout details cannot be saved right now: secure storage (libsodium) is not available on this server. Please contact support.', 'partner-program' ); ?></div>
 <?php endif; ?>
 
 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-form">
@@ -31,7 +39,7 @@ if ( 'invalid_method' === $pp_error ) :
 	<?php wp_nonce_field( 'pp_save_payout', '_pp_save_payout_nonce' ); ?>
 	<div class="pp-field">
 		<label><?php esc_html_e( 'Method', 'partner-program' ); ?>
-			<select name="payout_method">
+			<select name="payout_method"<?php echo esc_attr( $disabled_attr ); ?>>
 				<option value=""><?php esc_html_e( '— Select —', 'partner-program' ); ?></option>
 				<?php foreach ( $enabled_methods as $m ) : ?>
 					<option value="<?php echo esc_attr( $m ); ?>" <?php selected( $current_method, $m ); ?>><?php echo esc_html( strtoupper( $m ) ); ?></option>
@@ -39,10 +47,10 @@ if ( 'invalid_method' === $pp_error ) :
 			</select>
 		</label>
 	</div>
-	<div class="pp-field"><label><?php esc_html_e( 'Account / handle / email', 'partner-program' ); ?><input type="text" name="payout_details[account]" value="<?php echo esc_attr( (string) ( $details['account'] ?? '' ) ); ?>" /></label></div>
-	<div class="pp-field"><label><?php esc_html_e( 'Routing / extra info', 'partner-program' ); ?><input type="text" name="payout_details[routing]" value="<?php echo esc_attr( (string) ( $details['routing'] ?? '' ) ); ?>" /></label></div>
-	<div class="pp-field"><label><?php esc_html_e( 'Notes (e.g. legal name)', 'partner-program' ); ?><input type="text" name="payout_details[notes]" value="<?php echo esc_attr( (string) ( $details['notes'] ?? '' ) ); ?>" /></label></div>
-	<button type="submit" class="pp-btn pp-btn-primary"><?php esc_html_e( 'Save payout method', 'partner-program' ); ?></button>
+	<div class="pp-field"><label><?php esc_html_e( 'Account / handle / email', 'partner-program' ); ?><input type="text" name="payout_details[account]" value="<?php echo esc_attr( (string) ( $details['account'] ?? '' ) ); ?>"<?php echo esc_attr( $disabled_attr ); ?> /></label></div>
+	<div class="pp-field"><label><?php esc_html_e( 'Routing / extra info', 'partner-program' ); ?><input type="text" name="payout_details[routing]" value="<?php echo esc_attr( (string) ( $details['routing'] ?? '' ) ); ?>"<?php echo esc_attr( $disabled_attr ); ?> /></label></div>
+	<div class="pp-field"><label><?php esc_html_e( 'Notes (e.g. legal name)', 'partner-program' ); ?><input type="text" name="payout_details[notes]" value="<?php echo esc_attr( (string) ( $details['notes'] ?? '' ) ); ?>"<?php echo esc_attr( $disabled_attr ); ?> /></label></div>
+	<button type="submit" class="pp-btn pp-btn-primary"<?php echo esc_attr( $disabled_attr ); ?>><?php esc_html_e( 'Save payout method', 'partner-program' ); ?></button>
 </form>
 
 <h3 style="margin-top:2em;"><?php esc_html_e( 'Threshold progress', 'partner-program' ); ?></h3>

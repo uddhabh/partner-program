@@ -37,9 +37,13 @@ final class CommissionEngine {
 			return;
 		}
 
+		// Fast-path: avoid the calculation work when we already recorded
+		// for this order. Correctness no longer depends on this check —
+		// the INSERT below is guarded by UNIQUE KEY (order_id) — but
+		// skipping the work is still nice when payment hooks fire twice.
 		$existing = CommissionRepo::for_order( $order_id );
 		if ( $existing ) {
-			return; // Already recorded.
+			return;
 		}
 
 		$attribution = apply_filters( 'partner_program_resolve_attribution', null, $order );
@@ -83,23 +87,31 @@ final class CommissionEngine {
 		$paid_at   = $order->get_date_paid() ? $order->get_date_paid()->getTimestamp() : time();
 		$release   = gmdate( 'Y-m-d H:i:s', $paid_at + ( $hold_days * DAY_IN_SECONDS ) );
 
-		$commission_id = CommissionRepo::create(
+		$result = CommissionRepo::create_for_order(
 			[
-				'affiliate_id'     => $affiliate_id,
-				'order_id'         => $order_id,
+				'affiliate_id'      => $affiliate_id,
+				'order_id'          => $order_id,
 				'base_amount_cents' => $base_cents,
-				'rate'             => $effective_rate,
-				'amount_cents'     => $amount_cents,
-				'currency'         => $order->get_currency(),
-				'status'           => 'pending',
-				'source'           => $source,
-				'coupon_used'      => $coupon_used ? 1 : 0,
-				'coupon_code'      => $coupon_code,
-				'hold_release_at'  => $release,
-				'notes'            => null,
+				'rate'              => $effective_rate,
+				'amount_cents'      => $amount_cents,
+				'currency'          => $order->get_currency(),
+				'status'            => 'pending',
+				'source'            => $source,
+				'coupon_used'       => $coupon_used ? 1 : 0,
+				'coupon_code'       => $coupon_code,
+				'hold_release_at'   => $release,
+				'notes'             => null,
 			]
 		);
 
+		// Concurrent payment hook lost the UNIQUE-key race — bail without
+		// firing the recorded action again. Listeners (notifications,
+		// analytics, etc.) get exactly one event per order.
+		if ( ! $result['created'] ) {
+			return;
+		}
+
+		$commission_id = $result['id'];
 		do_action( 'partner_program_commission_recorded', $commission_id, $affiliate_id, $order_id );
 
 		$logger = Plugin::instance()->get( 'logger' );

@@ -128,8 +128,15 @@ final class AffiliateRepo {
 		return is_array( $decoded ) ? $decoded : [];
 	}
 
+	/**
+	 * @throws \RuntimeException when libsodium is not loaded — callers MUST
+	 *         either gate on Encryption::is_available() up front or catch
+	 *         and present a user-actionable error. Never fall back to a
+	 *         "store unencrypted" path.
+	 */
 	public static function encrypt_payout_details( array $details ): string {
-		$enc = new Encryption();
-		return $enc->encrypt( wp_json_encode( $details ) ?: '' );
+		$enc  = new Encryption();
+		$json = wp_json_encode( $details ) ?: '';
+		return $enc->encrypt( $json );
 	}
 }
