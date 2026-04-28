@@ -128,6 +128,9 @@ final class Plugin {
 	}
 
 	private function boot_subsystems(): void {
+		// HoldReleaser, TierResolver, ProhibitedTermsScanner are pure
+		// static utilities — their cron / scan hooks are wired directly
+		// in boot() above, so they don't need register() instantiations.
 		( new AdminMenu() )->register();
 		( new Settings() )->register();
 		( new ApplicationForm() )->register();
@@ -138,11 +141,8 @@ final class Plugin {
 		( new CouponManager() )->register();
 		( new OrderHooks() )->register();
 		( new CommissionEngine() )->register();
-		( new HoldReleaser() )->register();
-		( new TierResolver() )->register();
 		( new PayoutManager() )->register();
 		( new AgreementManager() )->register();
-		( new ProhibitedTermsScanner() )->register();
 		( new RestController() )->register();
 	}
 }

@@ -20,10 +20,6 @@ defined( 'ABSPATH' ) || exit;
 
 final class TierResolver {
 
-	public function register(): void {
-		// Hooks registered in Plugin::boot().
-	}
-
 	/**
 	 * Tiers, normalized: always sorted by `min` ASC and every entry has a
 	 * stable `key`. Auto-fills missing keys for old saved data so reads keep

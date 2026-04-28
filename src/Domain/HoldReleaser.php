@@ -15,10 +15,6 @@ final class HoldReleaser {
 
 	private const BATCH_SIZE = 500;
 
-	public function register(): void {
-		// Hook registered in Plugin::boot().
-	}
-
 	/**
 	 * Move due 'pending' commissions to 'approved'.
 	 *

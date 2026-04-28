@@ -15,8 +15,6 @@ defined( 'ABSPATH' ) || exit;
 
 final class ProhibitedTermsScanner {
 
-	public function register(): void {}
-
 	/**
 	 * @return array{matches:array<int,string>, ok:bool}
 	 */

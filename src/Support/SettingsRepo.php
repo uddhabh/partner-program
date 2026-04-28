@@ -56,10 +56,11 @@ final class SettingsRepo {
 				'prefix'         => 'PARTNER-',
 			],
 			'tracking'     => [
-				'cookie_name'      => 'pp_ref',
-				'cookie_lifetime'  => 30,
-				'param'            => 'ref',
-				'rewrite_slug'     => '',
+				'cookie_name'         => 'pp_ref',
+				'cookie_lifetime'     => 30,
+				'param'               => 'ref',
+				'rewrite_slug'        => '',
+				'trust_proxy_header'  => false,
 			],
 			'attribution'  => [
 				// Inherit attribution from the parent subscription onto each
@@ -207,10 +208,6 @@ final class SettingsRepo {
 		if ( false === get_option( self::OPTION, false ) ) {
 			update_option( self::OPTION, self::defaults(), false );
 		}
-	}
-
-	public function reset_cache(): void {
-		self::$cache = null;
 	}
 
 	/**

@@ -30,8 +30,6 @@ final class Installer {
 			status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			referral_code VARCHAR(64) NOT NULL,
 			default_commission_rate DECIMAL(7,4) NULL,
-			tier_id BIGINT UNSIGNED NULL,
-			current_tier_id BIGINT UNSIGNED NULL,
 			current_tier_key VARCHAR(40) NULL,
 			payout_method VARCHAR(40) NULL,
 			payout_details LONGTEXT NULL,
@@ -72,12 +70,10 @@ final class Installer {
 			user_agent VARCHAR(255) NULL,
 			landing_url TEXT NULL,
 			referrer_url TEXT NULL,
-			converted_order_id BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			KEY affiliate_id (affiliate_id),
-			KEY referral_code (referral_code),
-			KEY converted_order_id (converted_order_id)
+			KEY referral_code (referral_code)
 		) {$charset_collate};";
 
 		// order_id is NULLABLE because manual adjustments are not tied to an order.
@@ -87,7 +83,6 @@ final class Installer {
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			affiliate_id BIGINT UNSIGNED NOT NULL,
 			order_id BIGINT UNSIGNED NULL,
-			order_item_id BIGINT UNSIGNED NULL,
 			base_amount_cents BIGINT NOT NULL DEFAULT 0,
 			rate DECIMAL(7,4) NOT NULL DEFAULT 0,
 			amount_cents BIGINT NOT NULL DEFAULT 0,
