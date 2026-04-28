@@ -28,4 +28,14 @@ final class Money {
 		}
 		return ( $currency ? $currency . ' ' : '' ) . number_format_i18n( $amount, 2 );
 	}
+
+	/**
+	 * Locale-neutral fixed-format amount for CSV exports / data feeds:
+	 * always `1234.56` regardless of WP locale or WooCommerce currency
+	 * settings. Use Money::format() for human-facing UI; this is the
+	 * machine-readable variant.
+	 */
+	public static function to_fixed( int $cents ): string {
+		return number_format( self::to_decimal( $cents ), 2, '.', '' );
+	}
 }

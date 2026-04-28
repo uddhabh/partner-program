@@ -47,3 +47,9 @@
 
 .pp-materials { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .pp-material { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; }
+
+.pp-mt-lg { margin-top: 1.5em; }
+.pp-mt-xl { margin-top: 2em; }
+
+.pp-link-builder .pp-builder-input { width: 60%; }
+.pp-link-builder .pp-builder-output { width: 100%; margin-top: 8px; }

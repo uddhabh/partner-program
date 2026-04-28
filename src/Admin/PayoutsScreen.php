@@ -26,7 +26,9 @@ final class PayoutsScreen {
 
 		self::handle_actions();
 
-		$rows = PayoutRepo::search( [ 'per_page' => 100 ] );
+		$rows       = PayoutRepo::search( [ 'per_page' => 100 ] );
+		$affiliates = AffiliateRepo::find_many( array_map( static fn ( $r ): int => (int) $r['affiliate_id'], $rows ) );
+		cache_users( array_values( array_filter( array_map( static fn ( $a ): int => (int) ( $a['user_id'] ?? 0 ), $affiliates ) ) ) );
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Payouts', 'partner-program' ) . '</h1>';
 
@@ -52,7 +54,7 @@ final class PayoutsScreen {
 
 		$batches = [];
 		foreach ( $rows as $row ) {
-			$aff  = AffiliateRepo::find( (int) $row['affiliate_id'] );
+			$aff  = $affiliates[ (int) $row['affiliate_id'] ] ?? null;
 			$user = $aff ? get_userdata( (int) $aff['user_id'] ) : null;
 			echo '<tr>';
 			echo '<td>#' . (int) $row['id'] . '</td>';

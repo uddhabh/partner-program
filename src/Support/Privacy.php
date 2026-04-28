@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace PartnerProgram\Support;
 
 use PartnerProgram\Domain\AffiliateRepo;
+use PartnerProgram\Domain\AgreementRepo;
 use PartnerProgram\Domain\ApplicationRepo;
 use PartnerProgram\Domain\CommissionRepo;
 use PartnerProgram\Domain\PayoutRepo;
@@ -160,6 +161,32 @@ final class Privacy {
 				];
 			}
 
+			// Compliance agreement acceptances. The legal record of which
+			// version was accepted when stays even after an erasure, but
+			// the per-acceptance ip_hash is wiped in erase().
+			$acceptances = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT acc.id, acc.accepted_at, ag.version, ag.summary FROM '
+						. AgreementRepo::acceptances_table() . ' acc '
+						. 'LEFT JOIN ' . AgreementRepo::table() . ' ag ON ag.id = acc.agreement_id '
+						. 'WHERE acc.affiliate_id = %d ORDER BY acc.accepted_at ASC',
+					(int) $aff['id']
+				),
+				ARRAY_A
+			) ?: [];
+			foreach ( $acceptances as $row ) {
+				$out[] = [
+					'group_id'    => self::GROUP_ID,
+					'group_label' => __( 'Partner Program — Agreement acceptances', 'partner-program' ),
+					'item_id'     => 'agreement-acceptance-' . (int) $row['id'],
+					'data'        => [
+						[ 'name' => __( 'Agreement version', 'partner-program' ), 'value' => (int) ( $row['version'] ?? 0 ) ],
+						[ 'name' => __( 'Summary', 'partner-program' ),           'value' => (string) ( $row['summary'] ?? '' ) ],
+						[ 'name' => __( 'Accepted at', 'partner-program' ),       'value' => (string) $row['accepted_at'] ],
+					],
+				];
+			}
+
 			// Visits are pseudonymous (ip_hash, not raw IP) but still
 			// include them so the export is complete. Returned in
 			// aggregate to keep export size reasonable for prolific
@@ -200,6 +227,8 @@ final class Privacy {
 		$user = get_user_by( 'email', $email_address );
 		$aff  = $user ? AffiliateRepo::find_by_user( (int) $user->ID ) : null;
 
+		global $wpdb;
+
 		// Wipe affiliate payout PII.
 		if ( $aff ) {
 			AffiliateRepo::update(
@@ -212,6 +241,15 @@ final class Privacy {
 			);
 			++$removed;
 
+			// Keep the legal record that this affiliate accepted version N
+			// of the agreement at time T, but wipe the per-acceptance
+			// ip_hash since it links the acceptance back to the user.
+			$wpdb->update(
+				AgreementRepo::acceptances_table(),
+				[ 'ip_hash' => null ],
+				[ 'affiliate_id' => (int) $aff['id'] ]
+			);
+
 			$paid_total = CommissionRepo::sum_for_affiliate( (int) $aff['id'], 'paid' );
 			if ( $paid_total > 0 ) {
 				++$retained;
@@ -221,7 +259,6 @@ final class Privacy {
 
 		// Application submitted_data + uploads (covers applications submitted
 		// before the affiliate was approved, or applications without a user).
-		global $wpdb;
 		$apps = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT id, uploaded_ids FROM ' . ApplicationRepo::table() . ' WHERE email = %s',
@@ -234,8 +271,19 @@ final class Privacy {
 			if ( is_array( $uploads ) ) {
 				foreach ( $uploads as $attachment_id ) {
 					$attachment_id = (int) $attachment_id;
-					if ( $attachment_id > 0 ) {
-						wp_delete_attachment( $attachment_id, true );
+					if ( $attachment_id <= 0 ) {
+						continue;
+					}
+					// wp_delete_attachment can return false on filesystem
+					// failure (S3 hiccup, missing perms). Surface that as
+					// retained-not-removed so the admin can retry.
+					if ( false === wp_delete_attachment( $attachment_id, true ) ) {
+						++$retained;
+						$messages[] = sprintf(
+							/* translators: %d: attachment ID. */
+							__( 'Could not delete uploaded attachment #%d; retry the eraser or remove it manually.', 'partner-program' ),
+							$attachment_id
+						);
 					}
 				}
 			}

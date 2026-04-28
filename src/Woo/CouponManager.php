@@ -25,7 +25,6 @@ final class CouponManager {
 		// `ensure_coupon_for_affiliate` may have just created or located.
 		add_action( 'partner_program_affiliate_approved', [ $this, 'restore_coupon_for_affiliate' ], 20, 1 );
 		add_action( 'partner_program_affiliate_suspended', [ $this, 'deactivate_coupon_for_affiliate' ], 10, 1 );
-		add_action( 'partner_program_affiliate_rejected', [ $this, 'deactivate_coupon_for_affiliate' ], 10, 1 );
 	}
 
 	public function ensure_coupon_for_affiliate( int $affiliate_id ): ?int {

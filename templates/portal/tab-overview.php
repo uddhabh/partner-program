@@ -25,7 +25,7 @@ $current_sales = (int) ( $tier_progress['current_sales_cents'] ?? 0 );
 	</div>
 </div>
 
-<h3 style="margin-top:2em;"><?php esc_html_e( 'This month', 'partner-program' ); ?></h3>
+<h3 class="pp-mt-xl"><?php esc_html_e( 'This month', 'partner-program' ); ?></h3>
 <p>
 	<?php
 	printf(

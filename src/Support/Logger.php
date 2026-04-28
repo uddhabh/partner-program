@@ -69,13 +69,27 @@ final class Logger {
 
 	/**
 	 * Cron entry-point. Pulls retention from settings and short-circuits
-	 * when retention_days is 0 (keep forever).
+	 * when retention_days is 0 (keep forever). Wrapped in a MySQL advisory
+	 * lock so concurrent wp-cron runs can't double-prune.
 	 */
 	public static function run_scheduled_prune(): void {
 		$repo = new SettingsRepo();
 		$days = (int) $repo->get( 'logs.retention_days', 90 );
-		if ( $days > 0 ) {
+		if ( $days <= 0 ) {
+			return;
+		}
+
+		global $wpdb;
+		$lock_name = 'pp_prune_logs';
+		$got_lock  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, 1 ) );
+		if ( 1 !== $got_lock ) {
+			return;
+		}
+
+		try {
 			self::prune_older_than( $days );
+		} finally {
+			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
 	}
 }

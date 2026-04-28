@@ -1,6 +1,6 @@
 <?php
 /**
- * Database installer / upgrader.
+ * Database installer.
  *
  * @package PartnerProgram
  */
@@ -30,8 +30,6 @@ final class Installer {
 			status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			referral_code VARCHAR(64) NOT NULL,
 			default_commission_rate DECIMAL(7,4) NULL,
-			tier_id BIGINT UNSIGNED NULL,
-			current_tier_id BIGINT UNSIGNED NULL,
 			current_tier_key VARCHAR(40) NULL,
 			payout_method VARCHAR(40) NULL,
 			payout_details LONGTEXT NULL,
@@ -72,12 +70,10 @@ final class Installer {
 			user_agent VARCHAR(255) NULL,
 			landing_url TEXT NULL,
 			referrer_url TEXT NULL,
-			converted_order_id BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			KEY affiliate_id (affiliate_id),
-			KEY referral_code (referral_code),
-			KEY converted_order_id (converted_order_id)
+			KEY referral_code (referral_code)
 		) {$charset_collate};";
 
 		// order_id is NULLABLE because manual adjustments are not tied to an order.
@@ -87,10 +83,10 @@ final class Installer {
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			affiliate_id BIGINT UNSIGNED NOT NULL,
 			order_id BIGINT UNSIGNED NULL,
-			order_item_id BIGINT UNSIGNED NULL,
 			base_amount_cents BIGINT NOT NULL DEFAULT 0,
 			rate DECIMAL(7,4) NOT NULL DEFAULT 0,
 			amount_cents BIGINT NOT NULL DEFAULT 0,
+			original_amount_cents BIGINT NOT NULL DEFAULT 0,
 			currency VARCHAR(10) NOT NULL DEFAULT 'USD',
 			status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			source VARCHAR(20) NOT NULL DEFAULT 'referral',
@@ -183,55 +179,5 @@ final class Installer {
 		}
 
 		( new SettingsRepo() )->ensure_defaults();
-	}
-
-	/**
-	 * Version-aware migration dispatcher. Idempotent, safe to call repeatedly.
-	 * Triggered from Plugin::maybe_run_upgrades() with the previously-installed
-	 * version. Currently a no-op — the pre-launch upgrade history (1.0 → 1.1.x)
-	 * was scrubbed since no install carried real data; new entries get added
-	 * here the first time we ship a non-additive schema or data change to a
-	 * site that has data we want to preserve.
-	 *
-	 * @phpstan-param string $from_version
-	 */
-	public static function migrate( string $from_version ): void {
-		if ( '' === $from_version || '0' === $from_version ) {
-			$from_version = '0.0.0';
-		}
-
-		if ( version_compare( $from_version, '1.2.0', '<' ) ) {
-			self::migrate_to_1_2_0();
-		}
-	}
-
-	/**
-	 * 1.2.0 — Mark all attachments referenced by historical applications as
-	 * private uploads so the new admin-only download proxy will serve them.
-	 * Files themselves are NOT moved (existing URLs may be linked elsewhere
-	 * and we want to keep this migration cheap & non-destructive); only new
-	 * uploads land in the locked-down `partner-program-private/` subdir.
-	 */
-	private static function migrate_to_1_2_0(): void {
-		global $wpdb;
-
-		$apps_table = $wpdb->prefix . 'pp_applications';
-		$rows       = $wpdb->get_col( "SELECT uploaded_ids FROM {$apps_table} WHERE uploaded_ids IS NOT NULL AND uploaded_ids != ''" ) ?: []; // phpcs:ignore WordPress.DB
-		foreach ( $rows as $blob ) {
-			$decoded = json_decode( (string) $blob, true );
-			if ( ! is_array( $decoded ) ) {
-				continue;
-			}
-			foreach ( $decoded as $attachment_id ) {
-				$attachment_id = (int) $attachment_id;
-				if ( $attachment_id <= 0 ) {
-					continue;
-				}
-				if ( '1' === (string) get_post_meta( $attachment_id, '_pp_private', true ) ) {
-					continue;
-				}
-				update_post_meta( $attachment_id, '_pp_private', '1' );
-			}
-		}
 	}
 }

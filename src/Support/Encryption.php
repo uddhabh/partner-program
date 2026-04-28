@@ -3,11 +3,9 @@
  * Symmetric encryption helper for sensitive payout details.
  *
  * Requires libsodium (bundled with PHP 7.2+ and pretty much every modern
- * managed host). The pre-1.2 base64 fallback was removed: silently storing
- * sensitive PII as base64 with an `encrypted-looking` prefix was worse than
- * either failing loudly or refusing to write. The DECRYPT path still
- * understands the legacy `ppp1:` prefix so any historical rows on a host
- * that briefly fell back can still be read.
+ * managed host). The key is generated once on activation/upgrade and stored
+ * in wp_options separately from wp-config.php salts, so admins rotating
+ * their salts don't brick stored payout blobs.
  *
  * @package PartnerProgram
  */
@@ -20,8 +18,8 @@ defined( 'ABSPATH' ) || exit;
 
 final class Encryption {
 
-	private const PREFIX_SODIUM = 'pps1:';
-	private const PREFIX_LEGACY = 'ppp1:'; // Read-only; never emitted by this class anymore.
+	private const PREFIX     = 'pps1:';
+	private const KEY_OPTION = 'partner_program_encryption_key';
 
 	public static function is_available(): bool {
 		return function_exists( 'sodium_crypto_secretbox' )
@@ -31,9 +29,27 @@ final class Encryption {
 	}
 
 	/**
-	 * @throws \RuntimeException when libsodium is not available; callers
-	 *         must check Encryption::is_available() first or catch this and
-	 *         present a user-actionable error.
+	 * Generate and persist a dedicated 32-byte encryption key if one
+	 * isn't already stored. Idempotent: safe to call from activation and
+	 * from the upgrade path.
+	 */
+	public static function ensure_key(): void {
+		if ( ! self::is_available() ) {
+			return;
+		}
+		$existing = get_option( self::KEY_OPTION, '' );
+		if ( is_string( $existing ) && '' !== $existing ) {
+			return;
+		}
+		$raw = random_bytes( SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+		add_option( self::KEY_OPTION, base64_encode( $raw ), '', false );
+	}
+
+	/**
+	 * @throws \RuntimeException when libsodium is not available or the
+	 *         key option is missing; callers must check
+	 *         Encryption::is_available() first and catch this to present
+	 *         a user-actionable error rather than a fatal.
 	 */
 	public function encrypt( string $plaintext ): string {
 		if ( '' === $plaintext ) {
@@ -46,43 +62,49 @@ final class Encryption {
 			);
 		}
 
-		$key    = $this->derive_key();
+		$key = $this->key();
+		if ( '' === $key ) {
+			throw new \RuntimeException( 'Partner Program encryption key is missing — reactivate the plugin.' );
+		}
+
 		$nonce  = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
 		$cipher = sodium_crypto_secretbox( $plaintext, $nonce, $key );
-		return self::PREFIX_SODIUM . base64_encode( $nonce . $cipher );
+		return self::PREFIX . base64_encode( $nonce . $cipher );
 	}
 
 	public function decrypt( string $blob ): string {
-		if ( '' === $blob ) {
+		if ( '' === $blob || 0 !== strpos( $blob, self::PREFIX ) ) {
 			return '';
 		}
-
-		if ( 0 === strpos( $blob, self::PREFIX_SODIUM ) ) {
-			if ( ! self::is_available() ) {
-				return '';
-			}
-			$raw = base64_decode( substr( $blob, strlen( self::PREFIX_SODIUM ) ), true );
-			if ( false === $raw || strlen( $raw ) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ) {
-				return '';
-			}
-			$nonce  = substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
-			$cipher = substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
-			$key    = $this->derive_key();
-			$result = sodium_crypto_secretbox_open( $cipher, $nonce, $key );
-			return false === $result ? '' : $result;
+		if ( ! self::is_available() ) {
+			return '';
 		}
-
-		// Legacy base64 blob from <1.2.0 only kept for backward read.
-		if ( 0 === strpos( $blob, self::PREFIX_LEGACY ) ) {
-			$decoded = base64_decode( substr( $blob, strlen( self::PREFIX_LEGACY ) ), true );
-			return false === $decoded ? '' : $decoded;
+		$key = $this->key();
+		if ( '' === $key ) {
+			return '';
 		}
-
-		return '';
+		$raw = base64_decode( substr( $blob, strlen( self::PREFIX ) ), true );
+		if ( false === $raw || strlen( $raw ) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ) {
+			return '';
+		}
+		$nonce  = substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
+		$cipher = substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
+		$result = sodium_crypto_secretbox_open( $cipher, $nonce, $key );
+		return false === $result ? '' : $result;
 	}
 
-	private function derive_key(): string {
-		$salt = wp_salt( 'auth' );
-		return substr( hash( 'sha256', 'partner-program|' . $salt, true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+	/**
+	 * Returns the raw 32-byte key, or '' if the option is missing /
+	 * malformed. Encrypt callers turn '' into an exception (writing
+	 * unencrypted PII would be worse than failing loudly); decrypt
+	 * callers treat '' as "blob unreadable" and degrade gracefully.
+	 */
+	private function key(): string {
+		$stored = (string) get_option( self::KEY_OPTION, '' );
+		$raw    = '' !== $stored ? base64_decode( $stored, true ) : false;
+		if ( false === $raw || SODIUM_CRYPTO_SECRETBOX_KEYBYTES !== strlen( $raw ) ) {
+			return '';
+		}
+		return $raw;
 	}
 }

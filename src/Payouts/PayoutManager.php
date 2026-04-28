@@ -302,7 +302,7 @@ final class PayoutManager {
 				$user ? $user->user_email : '',
 				$user ? $user->display_name : '',
 				(string) $p['method'],
-				number_format( (int) $p['total_amount_cents'] / 100, 2, '.', '' ),
+				Money::to_fixed( (int) $p['total_amount_cents'] ),
 				(string) $p['currency'],
 				(string) ( $p['period_start'] ?? '' ),
 				(string) ( $p['period_end'] ?? '' ),

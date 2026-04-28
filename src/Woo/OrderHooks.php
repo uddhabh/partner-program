@@ -101,17 +101,25 @@ final class OrderHooks {
 			if ( ! $affiliate || 'approved' !== $affiliate['status'] ) {
 				continue;
 			}
-			$order->update_meta_data( '_pp_coupon_used', '1' );
-			$order->update_meta_data( '_pp_coupon_code', $coupon_code );
 
+			// Only record the coupon as "used for attribution" when it
+			// actually lines up with the affiliate getting credit.
+			// Otherwise (cookie attributes to A, but B's coupon is on the
+			// order) the coupon-bonus rate would land on A even though B
+			// issued the coupon.
 			$existing_aff = (int) $order->get_meta( '_pp_affiliate_id' );
 			if ( ! $existing_aff ) {
 				$order->update_meta_data( '_pp_affiliate_id', (string) $aff_id );
 				$order->update_meta_data( '_pp_attribution_source', 'coupon' );
+				$order->update_meta_data( '_pp_coupon_used', '1' );
+				$order->update_meta_data( '_pp_coupon_code', $coupon_code );
+				$changed = true;
 			} elseif ( $existing_aff === $aff_id ) {
 				$order->update_meta_data( '_pp_attribution_source', 'both' );
+				$order->update_meta_data( '_pp_coupon_used', '1' );
+				$order->update_meta_data( '_pp_coupon_code', $coupon_code );
+				$changed = true;
 			}
-			$changed = true;
 			break;
 		}
 
@@ -148,7 +156,11 @@ final class OrderHooks {
 			}
 		}
 
-		$keys    = [ '_pp_affiliate_id', '_pp_referral_code', '_pp_attribution_source', '_pp_coupon_used', '_pp_coupon_code' ];
+		// Renewal orders aren't placed via the coupon — only the parent
+		// order was. Inheriting `_pp_coupon_used` would cause every
+		// renewal forever to receive the coupon-bonus rate. Inherit
+		// attribution identity only.
+		$keys    = [ '_pp_affiliate_id', '_pp_referral_code', '_pp_attribution_source' ];
 		$changed = false;
 		foreach ( $keys as $key ) {
 			$value = method_exists( $subscription, 'get_meta' ) ? $subscription->get_meta( $key ) : '';
@@ -157,6 +169,11 @@ final class OrderHooks {
 			}
 			if ( '' === (string) $value ) {
 				continue;
+			}
+			// 'both' on the parent meant cookie + coupon agreed; on a
+			// renewal there's no coupon, so collapse to plain 'referral'.
+			if ( '_pp_attribution_source' === $key && 'both' === (string) $value ) {
+				$value = 'referral';
 			}
 			$renewal_order->update_meta_data( $key, $value );
 			$changed = true;
@@ -203,8 +220,8 @@ final class OrderHooks {
 		if ( ! $commissions ) {
 			return;
 		}
-		$total           = (float) $order->get_total();
-		$refunded_total  = (float) $order->get_total_refunded();
+		$total          = (float) $order->get_total();
+		$refunded_total = (float) $order->get_total_refunded();
 		if ( $refunded_total <= 0 || $total <= 0 ) {
 			return;
 		}
@@ -219,7 +236,11 @@ final class OrderHooks {
 			if ( '' !== $prior && false !== strpos( $prior, $marker ) ) {
 				continue; // Same refund already applied; idempotent on retries.
 			}
-			$new_amount = (int) round( (int) $row['amount_cents'] * $ratio );
+			// Scale from the immutable original commission amount, not the
+			// current (possibly already-reduced) amount_cents — otherwise a
+			// second partial refund decays geometrically off the result of
+			// the first one.
+			$new_amount = (int) round( (int) $row['original_amount_cents'] * $ratio );
 			$entry      = sprintf( 'Adjusted for partial refund (%s, ratio=%.4f)', $marker, $ratio );
 			$notes      = '' === $prior ? $entry : trim( $prior ) . "\n" . $entry;
 			CommissionRepo::update(

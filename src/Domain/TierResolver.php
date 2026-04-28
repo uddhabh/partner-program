@@ -20,45 +20,61 @@ defined( 'ABSPATH' ) || exit;
 
 final class TierResolver {
 
-	public function register(): void {
-		// Hooks registered in Plugin::boot().
-	}
-
 	/**
-	 * Tiers, normalized: always sorted by `min` ASC and every entry has a
-	 * stable `key`. Auto-fills missing keys for old saved data so reads keep
-	 * working even before the v1.1 migration backfills the option row.
+	 * Tiers, as stored. Tiers are normalized (unique keys, sorted by `min`
+	 * ASC) at save / import time via TierResolver::normalize(); the read
+	 * path trusts that contract.
 	 *
 	 * @return array<int, array{key:string,min:float,max:?float,rate:float,label?:string}>
 	 */
 	public static function tiers(): array {
-		$settings = new SettingsRepo();
-		$raw      = $settings->get( 'tiers', [] );
-		if ( ! is_array( $raw ) ) {
-			return [];
-		}
+		$raw = ( new SettingsRepo() )->get( 'tiers', [] );
+		return is_array( $raw ) ? $raw : [];
+	}
 
-		$used  = [];
-		$out   = [];
-		foreach ( array_values( $raw ) as $i => $t ) {
-			if ( ! is_array( $t ) ) {
+	/**
+	 * Coerce raw tier rows from the settings form (or an import file) into
+	 * the canonical stored shape: rate-required, key auto-generated and
+	 * deduped, sorted by min ASC.
+	 *
+	 * @param array<int, mixed> $rows
+	 * @return array<int, array{key:string,label:string,min:float,max:?float,rate:float}>
+	 */
+	public static function normalize( array $rows ): array {
+		$out  = [];
+		$used = [];
+		foreach ( array_values( $rows ) as $i => $row ) {
+			if ( ! is_array( $row ) ) {
 				continue;
 			}
-			if ( empty( $t['key'] ) ) {
-				$base = sanitize_title( (string) ( $t['label'] ?? '' ) );
-				if ( '' === $base ) {
-					$base = 'tier-' . ( $i + 1 );
-				}
-				$key = $base;
-				$n   = 2;
-				while ( in_array( $key, $used, true ) ) {
-					$key = $base . '-' . $n;
-					++$n;
-				}
-				$t['key'] = $key;
+			$rate = isset( $row['rate'] ) && '' !== $row['rate'] ? (float) $row['rate'] : null;
+			if ( null === $rate ) {
+				continue;
 			}
-			$used[] = (string) $t['key'];
-			$out[]  = $t;
+
+			$label = sanitize_text_field( (string) ( $row['label'] ?? '' ) );
+			$key   = sanitize_title( (string) ( $row['key'] ?? '' ) );
+			if ( '' === $key ) {
+				$key = sanitize_title( $label );
+			}
+			if ( '' === $key ) {
+				$key = 'tier-' . ( $i + 1 );
+			}
+			$base = $key;
+			$n    = 2;
+			while ( in_array( $key, $used, true ) ) {
+				$key = $base . '-' . $n;
+				++$n;
+			}
+			$used[] = $key;
+
+			$out[] = [
+				'key'   => $key,
+				'label' => $label,
+				'min'   => isset( $row['min'] ) && '' !== $row['min'] ? (float) $row['min'] : 0.0,
+				'max'   => isset( $row['max'] ) && '' !== $row['max'] ? (float) $row['max'] : null,
+				'rate'  => $rate,
+			];
 		}
 
 		usort(
@@ -104,9 +120,20 @@ final class TierResolver {
 
 	public static function recalculate_all(): void {
 		global $wpdb;
-		$rows = $wpdb->get_results( 'SELECT id FROM ' . AffiliateRepo::table() . " WHERE status = 'approved'", ARRAY_A ) ?: [];
-		foreach ( $rows as $row ) {
-			self::recalculate_for( (int) $row['id'] );
+
+		$lock_name = 'pp_recalculate_tiers';
+		$got_lock  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, 1 ) );
+		if ( 1 !== $got_lock ) {
+			return;
+		}
+
+		try {
+			$rows = $wpdb->get_results( 'SELECT id FROM ' . AffiliateRepo::table() . " WHERE status = 'approved'", ARRAY_A ) ?: [];
+			foreach ( $rows as $row ) {
+				self::recalculate_for( (int) $row['id'] );
+			}
+		} finally {
+			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
 	}
 

@@ -53,7 +53,7 @@ if ( 'invalid_method' === $pp_error ) :
 	<button type="submit" class="pp-btn pp-btn-primary"<?php echo esc_attr( $disabled_attr ); ?>><?php esc_html_e( 'Save payout method', 'partner-program' ); ?></button>
 </form>
 
-<h3 style="margin-top:2em;"><?php esc_html_e( 'Threshold progress', 'partner-program' ); ?></h3>
+<h3 class="pp-mt-xl"><?php esc_html_e( 'Threshold progress', 'partner-program' ); ?></h3>
 <div class="pp-progress"><div class="pp-progress-bar" style="width: <?php echo (int) $progress_pct; ?>%;"></div></div>
 <p>
 	<?php
@@ -65,7 +65,7 @@ if ( 'invalid_method' === $pp_error ) :
 	?>
 </p>
 
-<h3 style="margin-top:2em;"><?php esc_html_e( 'Payout history', 'partner-program' ); ?></h3>
+<h3 class="pp-mt-xl"><?php esc_html_e( 'Payout history', 'partner-program' ); ?></h3>
 <?php if ( ! $payouts ) : ?>
 	<p><?php esc_html_e( 'No payouts yet.', 'partner-program' ); ?></p>
 <?php else : ?>

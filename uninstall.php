@@ -27,6 +27,7 @@ foreach ( $tables as $t ) {
 
 delete_option( 'partner_program_settings' );
 delete_option( 'partner_program_db_version' );
+delete_option( 'partner_program_encryption_key' );
 delete_option( 'partner_program_portal_page_id' );
 delete_option( 'partner_program_application_page_id' );
 delete_option( 'partner_program_login_page_id' );
