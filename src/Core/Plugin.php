@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin bootstrap / service container.
+ * Plugin bootstrap.
  *
  * @package PartnerProgram
  */
@@ -16,7 +16,6 @@ use PartnerProgram\Application\ApplicationReview;
 use PartnerProgram\Application\PrivateUploads;
 use PartnerProgram\Cli\Commands;
 use PartnerProgram\Compliance\AgreementManager;
-use PartnerProgram\Compliance\ProhibitedTermsScanner;
 use PartnerProgram\Frontend\Portal;
 use PartnerProgram\Payouts\PayoutManager;
 use PartnerProgram\Rest\RestController;

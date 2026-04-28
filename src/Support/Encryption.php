@@ -46,9 +46,10 @@ final class Encryption {
 	}
 
 	/**
-	 * @throws \RuntimeException when libsodium is not available; callers
-	 *         must check Encryption::is_available() first or catch this and
-	 *         present a user-actionable error.
+	 * @throws \RuntimeException when libsodium is not available or the
+	 *         key option is missing; callers must check
+	 *         Encryption::is_available() first and catch this to present
+	 *         a user-actionable error rather than a fatal.
 	 */
 	public function encrypt( string $plaintext ): string {
 		if ( '' === $plaintext ) {
@@ -61,7 +62,11 @@ final class Encryption {
 			);
 		}
 
-		$key    = $this->key();
+		$key = $this->key();
+		if ( '' === $key ) {
+			throw new \RuntimeException( 'Partner Program encryption key is missing — reactivate the plugin.' );
+		}
+
 		$nonce  = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
 		$cipher = sodium_crypto_secretbox( $plaintext, $nonce, $key );
 		return self::PREFIX . base64_encode( $nonce . $cipher );
@@ -74,21 +79,31 @@ final class Encryption {
 		if ( ! self::is_available() ) {
 			return '';
 		}
+		$key = $this->key();
+		if ( '' === $key ) {
+			return '';
+		}
 		$raw = base64_decode( substr( $blob, strlen( self::PREFIX ) ), true );
 		if ( false === $raw || strlen( $raw ) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ) {
 			return '';
 		}
 		$nonce  = substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
 		$cipher = substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
-		$result = sodium_crypto_secretbox_open( $cipher, $nonce, $this->key() );
+		$result = sodium_crypto_secretbox_open( $cipher, $nonce, $key );
 		return false === $result ? '' : $result;
 	}
 
+	/**
+	 * Returns the raw 32-byte key, or '' if the option is missing /
+	 * malformed. Encrypt callers turn '' into an exception (writing
+	 * unencrypted PII would be worse than failing loudly); decrypt
+	 * callers treat '' as "blob unreadable" and degrade gracefully.
+	 */
 	private function key(): string {
 		$stored = (string) get_option( self::KEY_OPTION, '' );
 		$raw    = '' !== $stored ? base64_decode( $stored, true ) : false;
 		if ( false === $raw || SODIUM_CRYPTO_SECRETBOX_KEYBYTES !== strlen( $raw ) ) {
-			throw new \RuntimeException( 'Partner Program encryption key is missing — reactivate the plugin.' );
+			return '';
 		}
 		return $raw;
 	}
