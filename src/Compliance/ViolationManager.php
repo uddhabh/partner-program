@@ -9,7 +9,6 @@ declare( strict_types = 1 );
 
 namespace PartnerProgram\Compliance;
 
-use PartnerProgram\Core\Plugin;
 use PartnerProgram\Domain\AffiliateRepo;
 use PartnerProgram\Domain\CommissionRepo;
 use PartnerProgram\Support\Logger;
@@ -50,17 +49,14 @@ final class ViolationManager {
 			) );
 		}
 
-		$logger = Plugin::instance()->get( 'logger' );
-		if ( $logger instanceof Logger ) {
-			$logger->log(
-				'Compliance violation flagged: ' . $reason,
-				'compliance',
-				'warning',
-				$affiliate_id,
-				'affiliate',
-				[ 'reason' => $reason ]
-			);
-		}
+		( new Logger() )->log(
+			'Compliance violation flagged: ' . $reason,
+			'compliance',
+			'warning',
+			$affiliate_id,
+			'affiliate',
+			[ 'reason' => $reason ]
+		);
 		do_action( 'partner_program_violation_flagged', $affiliate_id, $reason );
 	}
 }

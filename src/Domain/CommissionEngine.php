@@ -12,7 +12,6 @@ declare( strict_types = 1 );
 
 namespace PartnerProgram\Domain;
 
-use PartnerProgram\Core\Plugin;
 use PartnerProgram\Support\Logger;
 use PartnerProgram\Support\Money;
 use PartnerProgram\Support\SettingsRepo;
@@ -115,19 +114,16 @@ final class CommissionEngine {
 		$commission_id = $result['id'];
 		do_action( 'partner_program_commission_recorded', $commission_id, $affiliate_id, $order_id );
 
-		$logger = Plugin::instance()->get( 'logger' );
-		if ( $logger instanceof Logger ) {
-			$logger->info(
-				sprintf( 'Commission #%d recorded for order #%d', $commission_id, $order_id ),
-				'commissions',
-				[
-					'affiliate_id'   => $affiliate_id,
-					'amount_cents'   => $amount_cents,
-					'rate'           => $effective_rate,
-					'source'         => $source,
-				]
-			);
-		}
+		( new Logger() )->info(
+			sprintf( 'Commission #%d recorded for order #%d', $commission_id, $order_id ),
+			'commissions',
+			[
+				'affiliate_id' => $affiliate_id,
+				'amount_cents' => $amount_cents,
+				'rate'         => $effective_rate,
+				'source'       => $source,
+			]
+		);
 	}
 
 	private function should_pay_for_status( \WC_Order $order, SettingsRepo $settings ): bool {

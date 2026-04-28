@@ -24,7 +24,6 @@ use PartnerProgram\Support\Capabilities;
 use PartnerProgram\Support\Encryption;
 use PartnerProgram\Support\Logger;
 use PartnerProgram\Support\Privacy;
-use PartnerProgram\Support\SettingsRepo;
 use PartnerProgram\Support\Updater;
 use PartnerProgram\Tracking\Tracker;
 use PartnerProgram\Woo\OrderHooks;
@@ -38,9 +37,6 @@ defined( 'ABSPATH' ) || exit;
 final class Plugin {
 
 	private static ?Plugin $instance = null;
-
-	/** @var array<string, object> */
-	private array $services = [];
 
 	private bool $booted = false;
 
@@ -60,8 +56,6 @@ final class Plugin {
 		$this->booted = true;
 
 		load_plugin_textdomain( PARTNER_PROGRAM_TEXTDOMAIN, false, dirname( PARTNER_PROGRAM_BASENAME ) . '/languages' );
-
-		$this->register_core_services();
 
 		add_action( 'init', [ $this, 'on_init' ], 5 );
 		add_action( 'admin_init', [ $this, 'maybe_run_upgrades' ] );
@@ -106,20 +100,6 @@ final class Plugin {
 		Encryption::ensure_key();
 		Activator::schedule_crons();
 		update_option( 'partner_program_db_version', PARTNER_PROGRAM_VERSION );
-	}
-
-	public function get( string $key ): ?object {
-		return $this->services[ $key ] ?? null;
-	}
-
-	public function set( string $key, object $service ): void {
-		$this->services[ $key ] = $service;
-	}
-
-	private function register_core_services(): void {
-		$this->set( 'logger', new Logger() );
-		$this->set( 'settings', new SettingsRepo() );
-		$this->set( 'encryption', new Encryption() );
 	}
 
 	private function boot_subsystems(): void {
