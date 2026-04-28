@@ -12,7 +12,7 @@ $penalty    = (string) $settings->get( 'compliance.penalty_text', '' );
 <?php endif; ?>
 
 <?php if ( $prohibited ) : ?>
-	<h3 style="margin-top:1.5em;"><?php esc_html_e( 'Prohibited claims', 'partner-program' ); ?></h3>
+	<h3 class="pp-mt-lg"><?php esc_html_e( 'Prohibited claims', 'partner-program' ); ?></h3>
 	<ul>
 		<?php foreach ( $prohibited as $term ) : ?>
 			<li><?php echo esc_html( (string) $term ); ?></li>

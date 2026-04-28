@@ -39,6 +39,7 @@ final class Portal {
 
 	public function enqueue(): void {
 		wp_register_style( 'partner-program-portal', PARTNER_PROGRAM_URL . 'assets/css/portal.css', [], PARTNER_PROGRAM_VERSION );
+		wp_register_script( 'partner-program-portal', PARTNER_PROGRAM_URL . 'assets/js/portal.js', [], PARTNER_PROGRAM_VERSION, true );
 	}
 
 	public function render_login(): string {
@@ -60,6 +61,15 @@ final class Portal {
 
 	public function render_portal(): string {
 		wp_enqueue_style( 'partner-program-portal' );
+		wp_enqueue_script( 'partner-program-portal' );
+		wp_localize_script(
+			'partner-program-portal',
+			'partnerProgramPortal',
+			[
+				'restUrl' => rest_url( 'partner-program/v1/me/link' ),
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
+			]
+		);
 		$settings = new SettingsRepo();
 
 		if ( ! is_user_logged_in() ) {
