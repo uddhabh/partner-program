@@ -594,15 +594,29 @@ final class Settings {
 			wp_die( esc_html__( 'Permission denied.', 'partner-program' ) );
 		}
 		check_admin_referer( self::NONCE );
-		if ( empty( $_FILES['settings_file']['tmp_name'] ) ) {
-			wp_safe_redirect( admin_url( 'admin.php?page=partner-program-settings&tab=iotools' ) );
+
+		$tmp = isset( $_FILES['settings_file']['tmp_name'] ) ? (string) $_FILES['settings_file']['tmp_name'] : '';
+		if ( '' === $tmp || ! is_uploaded_file( $tmp ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=partner-program-settings&tab=iotools&import_error=1' ) );
 			exit;
 		}
-		$json = file_get_contents( $_FILES['settings_file']['tmp_name'] );
+
+		$json = file_get_contents( $tmp );
 		$data = $json ? json_decode( (string) $json, true ) : null;
-		if ( is_array( $data ) ) {
-			( new SettingsRepo() )->replace_all( $data );
+		if ( ! is_array( $data ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=partner-program-settings&tab=iotools&import_error=1' ) );
+			exit;
 		}
+
+		// Drop anything we don't recognise so a malformed (or hostile) file
+		// can't poison the settings blob with arbitrary top-level keys.
+		$filtered = SettingsRepo::filter_for_import( $data );
+		if ( ! $filtered ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=partner-program-settings&tab=iotools&import_error=1' ) );
+			exit;
+		}
+
+		( new SettingsRepo() )->replace_all( $filtered );
 		wp_safe_redirect( admin_url( 'admin.php?page=partner-program-settings&tab=iotools&saved=1' ) );
 		exit;
 	}

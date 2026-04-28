@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace PartnerProgram\Core;
 
 use PartnerProgram\Support\Capabilities;
+use PartnerProgram\Support\Encryption;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -19,6 +20,7 @@ final class Activator {
 		Installer::install();
 		Capabilities::register_role();
 		Capabilities::grant_admin_caps();
+		Encryption::ensure_key();
 		self::ensure_pages();
 		self::schedule_crons();
 		update_option( 'partner_program_db_version', PARTNER_PROGRAM_VERSION );

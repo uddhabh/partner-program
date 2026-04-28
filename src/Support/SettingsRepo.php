@@ -183,6 +183,26 @@ final class SettingsRepo {
 		update_option( self::OPTION, self::$cache, false );
 	}
 
+	/**
+	 * Filter an arbitrary array down to the set of known top-level
+	 * sections, dropping anything we don't recognise. Used by the import
+	 * handler so a malformed or hostile JSON file can't poison the
+	 * settings blob with arbitrary keys.
+	 *
+	 * @param array<string, mixed> $values
+	 * @return array<string, mixed>
+	 */
+	public static function filter_for_import( array $values ): array {
+		$allowed = array_keys( self::defaults() );
+		$out     = [];
+		foreach ( $allowed as $key ) {
+			if ( array_key_exists( $key, $values ) && is_array( $values[ $key ] ) ) {
+				$out[ $key ] = $values[ $key ];
+			}
+		}
+		return $out;
+	}
+
 	public function ensure_defaults(): void {
 		if ( false === get_option( self::OPTION, false ) ) {
 			update_option( self::OPTION, self::defaults(), false );

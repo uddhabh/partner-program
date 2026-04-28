@@ -38,7 +38,12 @@ final class RestController {
 			'callback' => [ $this, 'me_link' ],
 			'permission_callback' => [ $this, 'is_partner' ],
 			'args'     => [
-				'url' => [ 'type' => 'string', 'required' => true ],
+				'url' => [
+					'type'              => 'string',
+					'required'          => true,
+					'sanitize_callback' => 'esc_url_raw',
+					'validate_callback' => [ $this, 'validate_link_url' ],
+				],
 			],
 		] );
 	}
@@ -67,14 +72,44 @@ final class RestController {
 		if ( ! $aff ) {
 			return new WP_Error( 'no_affiliate', 'No affiliate', [ 'status' => 404 ] );
 		}
-		$url = esc_url_raw( (string) $req->get_param( 'url' ) );
-		if ( ! $url ) {
-			$url = home_url( '/' );
-		}
+		$raw = (string) $req->get_param( 'url' );
+		$url = $raw && self::is_same_host( $raw ) ? esc_url_raw( $raw ) : home_url( '/' );
 		$settings = new SettingsRepo();
 		$param    = (string) $settings->get( 'tracking.param', 'ref' );
 		return new WP_REST_Response( [
 			'link' => add_query_arg( [ $param => $aff['referral_code'] ], $url ),
 		] );
+	}
+
+	/**
+	 * REST args validator: accept only URLs on this site's host. Without
+	 * this, `/me/link` would happily mint a referral-tagged link to any
+	 * URL on the internet — a phishing / SEO-laundering vector for any
+	 * approved partner.
+	 *
+	 * @param mixed $value
+	 * @return bool|WP_Error
+	 */
+	public function validate_link_url( $value ) {
+		if ( ! is_string( $value ) || '' === $value ) {
+			return false;
+		}
+		if ( ! self::is_same_host( $value ) ) {
+			return new WP_Error(
+				'rest_invalid_url',
+				__( 'URL must be on this site.', 'partner-program' ),
+				[ 'status' => 400 ]
+			);
+		}
+		return true;
+	}
+
+	private static function is_same_host( string $url ): bool {
+		$host_in = wp_parse_url( $url, PHP_URL_HOST );
+		if ( ! $host_in ) {
+			return false;
+		}
+		$site_host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		return strtolower( (string) $host_in ) === strtolower( (string) $site_host );
 	}
 }
