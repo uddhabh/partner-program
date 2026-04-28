@@ -89,18 +89,19 @@ final class CommissionEngine {
 
 		$result = CommissionRepo::create_for_order(
 			[
-				'affiliate_id'      => $affiliate_id,
-				'order_id'          => $order_id,
-				'base_amount_cents' => $base_cents,
-				'rate'              => $effective_rate,
-				'amount_cents'      => $amount_cents,
-				'currency'          => $order->get_currency(),
-				'status'            => 'pending',
-				'source'            => $source,
-				'coupon_used'       => $coupon_used ? 1 : 0,
-				'coupon_code'       => $coupon_code,
-				'hold_release_at'   => $release,
-				'notes'             => null,
+				'affiliate_id'          => $affiliate_id,
+				'order_id'              => $order_id,
+				'base_amount_cents'     => $base_cents,
+				'rate'                  => $effective_rate,
+				'amount_cents'          => $amount_cents,
+				'original_amount_cents' => $amount_cents,
+				'currency'              => $order->get_currency(),
+				'status'                => 'pending',
+				'source'                => $source,
+				'coupon_used'           => $coupon_used ? 1 : 0,
+				'coupon_code'           => $coupon_code,
+				'hold_release_at'       => $release,
+				'notes'                 => null,
 			]
 		);
 

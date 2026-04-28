@@ -91,6 +91,7 @@ final class Installer {
 			base_amount_cents BIGINT NOT NULL DEFAULT 0,
 			rate DECIMAL(7,4) NOT NULL DEFAULT 0,
 			amount_cents BIGINT NOT NULL DEFAULT 0,
+			original_amount_cents BIGINT NOT NULL DEFAULT 0,
 			currency VARCHAR(10) NOT NULL DEFAULT 'USD',
 			status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			source VARCHAR(20) NOT NULL DEFAULT 'referral',

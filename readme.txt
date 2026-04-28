@@ -4,7 +4,7 @@ Tags: affiliate, partner, woocommerce, referral, commission
 Requires at least: 6.2
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,6 +52,17 @@ If both refer to the same affiliate, the source is recorded as `both` and the co
 Generate a payout batch from *Partner Program → Payouts*. Download the CSV, send funds via your preferred method (ACH, PayPal, Zelle, CashApp, Wise, check), then click "Mark paid" so commissions roll to status `paid`.
 
 == Changelog ==
+
+= 1.2.0 =
+* Correctness: partial refunds now adjust commissions linearly off the original commission amount; previously a second partial refund decayed geometrically.
+* Correctness: coupon-bonus rate is no longer applied when the cookie-attributed affiliate differs from the coupon's affiliate.
+* Correctness: WooCommerce Subscriptions renewals no longer inherit the parent order's coupon-used meta, so renewals don't keep getting the coupon-bonus rate forever.
+* Reliability: hold-release cron now processes in batches with a MySQL advisory lock, and re-checks affiliate status before approving.
+* Reliability: tier recalculation and log pruning crons take advisory locks so concurrent wp-cron runs can't double-fire side effects.
+* Performance: capability re-grant moved out of the per-request `init` hook (was triggering autoloaded option writes on every front-end page load).
+* Security: REST `/me/link` rejects off-site URLs (was a phishing/SEO-laundering vector for any approved partner).
+* Security: settings import validates the JSON shape against a key allowlist instead of merging arbitrary input.
+* Security: payout-detail encryption key is generated once on activation and stored separately, so rotating WordPress salts no longer bricks stored payout blobs.
 
 = 1.1.0 =
 * Correctness: enforce one commission row per WooCommerce order via UNIQUE constraint on `pp_commissions.order_id` (manual adjustments are now stored with `order_id = NULL`).
