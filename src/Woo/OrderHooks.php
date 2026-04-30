@@ -214,6 +214,13 @@ final class OrderHooks {
 	}
 
 	public function partial_refund_handler( int $order_id, int $refund_id ): void {
+		// Respect the admin's "Adjust commissions on partial refunds" toggle.
+		// Without this gate the handler always ran regardless of the setting,
+		// making the checkbox a placebo. Default-on so behaviour for sites
+		// that never touched the setting is unchanged.
+		if ( ! (bool) ( new SettingsRepo() )->get( 'commissions.partial_refund_clawback', true ) ) {
+			return;
+		}
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
 			return;

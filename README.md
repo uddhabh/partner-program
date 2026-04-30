@@ -92,11 +92,11 @@ define( 'PARTNER_PROGRAM_GITHUB_TOKEN', 'ghp_...' ); // only for private repos
 
 ## Releasing (maintainers)
 
-1. Bump the version in `partner-program.php` (Version header + `PARTNER_PROGRAM_VERSION` define) and `readme.txt` Stable tag. The build script can do this for you: `bin/build-release.sh 1.1.0`.
+1. Bump the version in `partner-program.php` (Version header + `PARTNER_PROGRAM_VERSION` define) and `readme.txt` Stable tag. The build script can do this for you: `bin/build-release.sh 1.2.1` (substitute the version you're cutting).
 2. Commit, tag, push:
    ```bash
-   git commit -am "Release 1.1.0"
-   git tag -a v1.1.0 -m "v1.1.0"
+   git commit -am "Release 1.2.1"
+   git tag -a v1.2.1 -m "v1.2.1"
    git push --follow-tags
    ```
 3. The `Release` GitHub Actions workflow runs on the tag push: it lints PHP, verifies the tag matches the in-file version, builds `dist/partner-program.zip`, and creates the GitHub release with the zip attached and auto-generated notes from the commit log. The version is encoded in the release tag, not the zip filename.
