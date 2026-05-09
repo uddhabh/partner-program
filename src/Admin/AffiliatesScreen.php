@@ -14,6 +14,7 @@ use PartnerProgram\Domain\CommissionRepo;
 use PartnerProgram\Domain\TierResolver;
 use PartnerProgram\Support\Capabilities;
 use PartnerProgram\Support\Money;
+use PartnerProgram\Support\Ui;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -35,21 +36,28 @@ final class AffiliatesScreen {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Affiliates', 'partner-program' ) . '</h1>';
 
 		if ( isset( $_GET['done'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Updated.', 'partner-program' ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Changes saved.', 'partner-program' ) . '</p></div>';
 		}
 
-		echo '<form method="get"><input type="hidden" name="page" value="partner-program-affiliates" />';
-		echo '<select name="status">';
-		foreach ( [ '' => __( 'All statuses', 'partner-program' ), 'pending' => 'Pending', 'approved' => 'Approved', 'suspended' => 'Suspended', 'rejected' => 'Rejected' ] as $val => $label ) {
-			printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $status, $val, false ), esc_html( $label ) );
-		}
-		echo '</select> ';
-		printf( '<input type="search" name="s" value="%s" placeholder="%s" /> ', esc_attr( $search ), esc_attr__( 'Search by code or email', 'partner-program' ) );
-		echo get_submit_button( __( 'Filter', 'partner-program' ), 'secondary', 'submit', false );
-		echo '</form>';
+		Ui::status_filter(
+			'partner-program-affiliates',
+			$status,
+			[
+				''          => __( 'All statuses', 'partner-program' ),
+				'pending'   => __( 'Pending', 'partner-program' ),
+				'approved'  => __( 'Approved', 'partner-program' ),
+				'suspended' => __( 'Suspended', 'partner-program' ),
+				'rejected'  => __( 'Rejected', 'partner-program' ),
+			],
+			[
+				'name'        => 's',
+				'value'       => $search,
+				'placeholder' => __( 'Search by code or email', 'partner-program' ),
+			]
+		);
 
 		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>'
-			. '<th>ID</th><th>' . esc_html__( 'User', 'partner-program' ) . '</th>'
+			. '<th>' . esc_html__( 'ID', 'partner-program' ) . '</th><th>' . esc_html__( 'User', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Code', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Status', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Tier', 'partner-program' ) . '</th>'
@@ -70,7 +78,6 @@ final class AffiliatesScreen {
 			$pending   = $totals['pending'];
 			$approved  = $totals['approved'];
 			$paid      = $totals['paid'];
-			$nonce     = wp_create_nonce( 'pp_affiliate_action_' . $row['id'] );
 
 			echo '<tr>';
 			echo '<td>#' . (int) $row['id'] . '</td>';
@@ -87,13 +94,13 @@ final class AffiliatesScreen {
 			echo '<td>' . esc_html( Money::format( $pending ) ) . '</td>';
 			echo '<td>' . esc_html( Money::format( $approved ) ) . '</td>';
 			echo '<td>' . esc_html( Money::format( $paid ) ) . '</td>';
-			echo '<td>';
+			echo '<td class="pp-row-actions">';
 			// Link back to this same screen rather than admin-post.php — we
 			// don't register an admin_post_pp_affiliate_* hook, the action
 			// is handled inline by handle_actions() during render().
 			$base = admin_url( 'admin.php?page=partner-program-affiliates' );
 			$mk   = static fn( string $action, string $label ) => sprintf(
-				'<a href="%s" style="margin-right:6px;">%s</a>',
+				'<a href="%s">%s</a>',
 				esc_url( wp_nonce_url(
 					add_query_arg( [ 'action' => 'pp_affiliate_' . $action, 'id' => (int) $row['id'] ], $base ),
 					'pp_affiliate_action_' . $row['id']

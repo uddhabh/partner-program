@@ -21,7 +21,7 @@ use PartnerProgram\Support\Money;
 			<?php foreach ( $commissions as $c ) : ?>
 				<tr>
 					<td><?php echo esc_html( (string) $c['created_at'] ); ?></td>
-					<td>#<?php echo (int) $c['order_id']; ?></td>
+					<td><?php echo ( (int) $c['order_id'] > 0 ) ? '#' . (int) $c['order_id'] : '—'; ?></td>
 					<td><?php echo esc_html( (string) $c['source'] ); ?><?php echo $c['coupon_used'] ? ' ★' : ''; ?></td>
 					<td><?php echo esc_html( (string) $c['rate'] ); ?>%</td>
 					<td><?php echo esc_html( Money::format( (int) $c['base_amount_cents'], (string) $c['currency'] ) ); ?></td>

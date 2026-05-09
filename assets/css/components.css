@@ -1,0 +1,58 @@
+/**
+ * Shared frontend components used by both the application form and the
+ * partner portal. The accent color is read from the `--pp-accent` CSS
+ * custom property, which each context sets from `general.accent_color`
+ * (see ApplicationForm::render_shortcode + portal/wrapper.php). Falls
+ * back to a sensible default so the components also work inside any
+ * unrelated container that forgets to set the variable.
+ */
+
+:root,
+.pp-application,
+.pp-portal { --pp-accent: #2563eb; }
+
+/* Layout */
+.pp-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.pp-mt-lg { margin-top: 1.5em; }
+.pp-mt-xl { margin-top: 2em; }
+
+/* Cards */
+.pp-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.pp-card-title { color: #6b7280; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
+.pp-card-value { font-size: 1.75rem; font-weight: 700; margin: .25rem 0; color: #111827; }
+.pp-card-sub { color: #6b7280; font-size: .85rem; }
+
+/* Form fields shared between application form + portal */
+.pp-form .pp-field { margin-bottom: 1rem; border: 0; padding: 0; }
+.pp-form .pp-field > label,
+.pp-form .pp-field > legend { display: block; font-weight: 600; color: #374151; margin-bottom: .25rem; padding: 0; }
+.pp-form input[type=text],
+.pp-form input[type=email],
+.pp-form input[type=tel],
+.pp-form input[type=password],
+.pp-form input[type=url],
+.pp-form input[type=number],
+.pp-form select,
+.pp-form textarea { width: 100%; padding: .55rem .7rem; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; }
+.pp-form textarea { min-height: 90px; }
+.pp-required { color: #b91c1c; }
+
+/* Single inline checkbox */
+.pp-form .pp-field-checkbox > label { display: flex; align-items: flex-start; gap: .5rem; font-weight: 500; color: #374151; cursor: pointer; }
+.pp-form .pp-field-checkbox input[type=checkbox] { margin: .15rem 0 0; flex: 0 0 auto; }
+.pp-form .pp-field-checkbox .pp-check-text { flex: 1 1 auto; }
+
+/* Multi-checkbox group */
+.pp-form .pp-field-checkboxes { display: block; }
+.pp-form .pp-field-checkboxes .pp-check-option { display: flex; align-items: center; gap: .5rem; font-weight: 400; color: #374151; cursor: pointer; padding: .15rem 0; }
+.pp-form .pp-field-checkboxes .pp-check-option input[type=checkbox] { margin: 0; flex: 0 0 auto; }
+
+/* Buttons */
+.pp-btn { display:inline-block; padding: .55rem 1rem; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; font: inherit; color: #111827; text-decoration: none; }
+.pp-btn-primary { background: var(--pp-accent); color: #fff; border-color: var(--pp-accent); }
+.pp-btn-primary:hover { filter: brightness(.92); }
+
+/* Alerts */
+.pp-alert { padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+.pp-alert-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.pp-alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }

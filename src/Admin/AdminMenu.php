@@ -27,7 +27,8 @@ final class AdminMenu {
 		if ( false === strpos( $hook, 'partner-program' ) ) {
 			return;
 		}
-		wp_enqueue_style( 'partner-program-admin', PARTNER_PROGRAM_URL . 'assets/css/admin.css', [], PARTNER_PROGRAM_VERSION );
+		wp_enqueue_style( 'partner-program-components', PARTNER_PROGRAM_URL . 'assets/css/components.css', [], PARTNER_PROGRAM_VERSION );
+		wp_enqueue_style( 'partner-program-admin', PARTNER_PROGRAM_URL . 'assets/css/admin.css', [ 'partner-program-components' ], PARTNER_PROGRAM_VERSION );
 	}
 
 	public function add_menu(): void {

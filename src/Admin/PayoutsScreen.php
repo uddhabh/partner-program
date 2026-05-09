@@ -33,17 +33,29 @@ final class PayoutsScreen {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Payouts', 'partner-program' ) . '</h1>';
 
 		if ( isset( $_GET['done'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Done.', 'partner-program' ) . '</p></div>';
+			$done = (int) $_GET['done']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( $done > 1 ) {
+				$message = sprintf(
+					/* translators: %d: payouts generated in batch. */
+					_n( 'Generated %d payout.', 'Generated %d payouts.', $done, 'partner-program' ),
+					$done
+				);
+			} elseif ( 0 === $done ) {
+				$message = __( 'No eligible payouts found for this period.', 'partner-program' );
+			} else {
+				$message = __( 'Payout updated.', 'partner-program' );
+			}
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
 		}
 
-		echo '<form method="post" style="margin-bottom:1em;"><input type="hidden" name="pp_action" value="generate_batch" />';
+		echo '<form method="post" class="pp-admin-toolbar"><input type="hidden" name="pp_action" value="generate_batch" />';
 		wp_nonce_field( 'pp_payout_batch' );
 		echo '<label>' . esc_html__( 'Period (YYYY-MM, optional)', 'partner-program' ) . ' <input type="text" name="period" pattern="\d{4}-\d{2}" placeholder="' . esc_attr( gmdate( 'Y-m', strtotime( '-1 month' ) ) ) . '" /></label> ';
 		echo get_submit_button( __( 'Generate payout batch', 'partner-program' ), 'primary', 'submit', false );
 		echo '</form>';
 
 		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>'
-			. '<th>ID</th><th>' . esc_html__( 'Affiliate', 'partner-program' ) . '</th>'
+			. '<th>' . esc_html__( 'ID', 'partner-program' ) . '</th><th>' . esc_html__( 'Affiliate', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Period', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Method', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Amount', 'partner-program' ) . '</th>'
@@ -92,7 +104,7 @@ final class PayoutsScreen {
 			echo '<h2>' . esc_html__( 'CSV exports', 'partner-program' ) . '</h2><ul>';
 			foreach ( array_keys( $batches ) as $batch ) {
 				$url = wp_nonce_url(
-					add_query_arg( [ 'pp_action' => 'export_csv', 'batch' => urlencode( (string) $batch ) ], admin_url( 'admin.php?page=partner-program-payouts' ) ),
+					add_query_arg( [ 'pp_action' => 'export_csv', 'batch' => (string) $batch ], admin_url( 'admin.php?page=partner-program-payouts' ) ),
 					'pp_payout_export_' . $batch
 				);
 				echo '<li><a href="' . esc_url( $url ) . '">' . esc_html( (string) $batch ) . '</a></li>';

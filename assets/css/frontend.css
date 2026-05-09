@@ -1,16 +1,7 @@
+/**
+ * Application form-only styles. Shared form field, button, alert, and
+ * checkbox primitives live in components.css and are enqueued together.
+ */
+
 .pp-application { max-width: 720px; margin: 0 auto; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 .pp-application h2 { margin-bottom: 1rem; }
-.pp-form .pp-field { margin-bottom: 1rem; }
-.pp-form label { display: block; font-weight: 600; color: #374151; margin-bottom: .25rem; }
-.pp-form input[type=text],
-.pp-form input[type=email],
-.pp-form input[type=tel],
-.pp-form input[type=password],
-.pp-form select,
-.pp-form textarea { width: 100%; padding: .55rem .7rem; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; }
-.pp-form textarea { min-height: 90px; }
-.pp-btn { display:inline-block; padding: .65rem 1.25rem; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; font: inherit; }
-.pp-btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-.pp-alert { padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
-.pp-alert-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-.pp-alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }

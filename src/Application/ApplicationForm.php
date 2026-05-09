@@ -32,7 +32,8 @@ final class ApplicationForm {
 		// Always register so that render_shortcode() can enqueue the handle
 		// regardless of whether the shortcode lives on a singular template,
 		// an archive widget, a block-template part, or a REST-rendered page.
-		wp_register_style( 'partner-program-frontend', PARTNER_PROGRAM_URL . 'assets/css/frontend.css', [], PARTNER_PROGRAM_VERSION );
+		wp_register_style( 'partner-program-components', PARTNER_PROGRAM_URL . 'assets/css/components.css', [], PARTNER_PROGRAM_VERSION );
+		wp_register_style( 'partner-program-frontend', PARTNER_PROGRAM_URL . 'assets/css/frontend.css', [ 'partner-program-components' ], PARTNER_PROGRAM_VERSION );
 	}
 
 	public function render_shortcode( $atts = [] ): string {
@@ -43,7 +44,7 @@ final class ApplicationForm {
 
 		$flash = $this->consume_flash();
 
-		return Template::render(
+		$html = Template::render(
 			'application/form.php',
 			[
 				'fields'   => $fields,
@@ -53,6 +54,15 @@ final class ApplicationForm {
 				'nonce'    => wp_nonce_field( self::NONCE_ACTION, self::NONCE_FIELD, true, false ),
 			]
 		);
+
+		// Collapse whitespace between adjacent tags. WP runs `wpautop`
+		// on `the_content` (which expands shortcodes), and any newline
+		// between two tags inside what wpautop sees as a paragraph turns
+		// into a stray `<br />`. This is a known shortcode-output footgun
+		// — by stripping inter-tag whitespace we leave wpautop nothing to
+		// convert. Text content between tags is preserved (the regex only
+		// matches a `>` followed by whitespace followed by `<`).
+		return (string) preg_replace( '/>\s+</', '><', $html );
 	}
 
 	public function handle_submission(): void {

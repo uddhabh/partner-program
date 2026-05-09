@@ -13,6 +13,7 @@ use PartnerProgram\Application\PrivateUploads;
 use PartnerProgram\Domain\ApplicationRepo;
 use PartnerProgram\Support\Capabilities;
 use PartnerProgram\Support\SettingsRepo;
+use PartnerProgram\Support\Ui;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -33,13 +34,18 @@ final class ApplicationsScreen {
 		$rows   = ApplicationRepo::search( [ 'status' => $status, 'per_page' => 50 ] );
 
 		echo '<div class="wrap"><h1>' . esc_html__( 'Applications', 'partner-program' ) . '</h1>';
-		echo '<form method="get"><input type="hidden" name="page" value="partner-program-applications" /><select name="status">';
-		foreach ( [ '' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected' ] as $val => $label ) {
-			printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $status, $val, false ), esc_html( $label ) );
-		}
-		echo '</select> ' . get_submit_button( __( 'Filter', 'partner-program' ), 'secondary', 'submit', false ) . '</form>';
+		Ui::status_filter(
+			'partner-program-applications',
+			$status,
+			[
+				''         => __( 'All', 'partner-program' ),
+				'pending'  => __( 'Pending', 'partner-program' ),
+				'approved' => __( 'Approved', 'partner-program' ),
+				'rejected' => __( 'Rejected', 'partner-program' ),
+			]
+		);
 
-		echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>ID</th><th>Email</th><th>Status</th><th>Submitted</th><th></th></tr></thead><tbody>';
+		echo '<table class="wp-list-table widefat fixed striped"><thead><tr><th>' . esc_html__( 'ID', 'partner-program' ) . '</th><th>' . esc_html__( 'Email', 'partner-program' ) . '</th><th>' . esc_html__( 'Status', 'partner-program' ) . '</th><th>' . esc_html__( 'Submitted', 'partner-program' ) . '</th><th><span class="screen-reader-text">' . esc_html__( 'Actions', 'partner-program' ) . '</span></th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			printf(
 				'<tr><td>#%1$d</td><td>%2$s</td><td>%3$s</td><td>%4$s</td><td><a href="%5$s">%6$s</a></td></tr>',
@@ -83,12 +89,12 @@ final class ApplicationsScreen {
 					? sanitize_key( (string) wp_unslash( $_GET['reason'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 					: '';
 				$detail = self::review_error_message( $reason );
-				echo '<div class="notice notice-error"><p>'
+				echo '<div class="notice notice-error is-dismissible"><p>'
 					. esc_html__( 'Approval failed.', 'partner-program' )
 					. ( '' !== $detail ? ' ' . esc_html( $detail ) : '' )
 					. '</p></div>';
 			} else {
-				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Saved.', 'partner-program' ) . '</p></div>';
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Application updated.', 'partner-program' ) . '</p></div>';
 			}
 		}
 
@@ -122,12 +128,17 @@ final class ApplicationsScreen {
 		echo '</tbody></table>';
 
 		if ( 'pending' === $app['status'] ) {
+			echo '<h2>' . esc_html__( 'Review', 'partner-program' ) . '</h2>';
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			echo '<input type="hidden" name="action" value="partner_program_review_application" />';
-			echo '<input type="hidden" name="application_id" value="' . (int) $app['id'] . '" />';
+			echo '<input type="hidden" name="application_id" value="' . (int) $app['id' ] . '" />';
 			wp_nonce_field( 'pp_review_application' );
-			echo '<p><label>' . esc_html__( 'Notes', 'partner-program' ) . '<br/><textarea name="review_notes" rows="3" cols="60"></textarea></label></p>';
-			echo '<p>';
+			echo '<table class="form-table" role="presentation"><tbody>';
+			echo '<tr><th scope="row"><label for="pp-review-notes">' . esc_html__( 'Notes', 'partner-program' ) . '</label></th>';
+			echo '<td><textarea id="pp-review-notes" name="review_notes" rows="3" class="large-text"></textarea>';
+			echo '<p class="description">' . esc_html__( 'Optional. Visible to admins only.', 'partner-program' ) . '</p></td></tr>';
+			echo '</tbody></table>';
+			echo '<p class="submit">';
 			printf(
 				'<button type="submit" name="decision" value="approve" class="button button-primary">%s</button> ',
 				esc_html__( 'Approve', 'partner-program' )

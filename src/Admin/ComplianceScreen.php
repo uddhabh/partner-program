@@ -10,7 +10,6 @@ declare( strict_types = 1 );
 namespace PartnerProgram\Admin;
 
 use PartnerProgram\Compliance\ProhibitedTermsScanner;
-use PartnerProgram\Domain\AffiliateRepo;
 use PartnerProgram\Support\Capabilities;
 
 defined( 'ABSPATH' ) || exit;
@@ -44,21 +43,24 @@ final class ComplianceScreen {
 		echo '<form method="post">';
 		wp_nonce_field( 'pp_compliance_scan' );
 		echo '<input type="hidden" name="scan" value="1" />';
-		echo '<textarea name="scan_text" rows="6" cols="80" placeholder="' . esc_attr__( 'Paste promotional text or page HTML here...', 'partner-program' ) . '"></textarea><br/>';
+		echo '<table class="form-table" role="presentation"><tbody>';
+		echo '<tr><th scope="row"><label for="pp-scan-text">' . esc_html__( 'Content', 'partner-program' ) . '</label></th>';
+		echo '<td><textarea id="pp-scan-text" name="scan_text" rows="6" class="large-text" placeholder="' . esc_attr__( 'Paste promotional text or page HTML here...', 'partner-program' ) . '"></textarea></td></tr>';
+		echo '</tbody></table>';
 		submit_button( __( 'Scan for prohibited terms', 'partner-program' ) );
 		echo '</form>';
 
 		if ( $result ) {
 			if ( $result['matches'] ) {
-				echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Matches found:', 'partner-program' ) . '</strong> ' . esc_html( implode( ', ', $result['matches'] ) ) . '</p></div>';
+				echo '<div class="notice notice-error is-dismissible"><p><strong>' . esc_html__( 'Matches found:', 'partner-program' ) . '</strong> ' . esc_html( implode( ', ', $result['matches'] ) ) . '</p></div>';
 			} else {
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'No prohibited terms detected.', 'partner-program' ) . '</p></div>';
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'No prohibited terms detected.', 'partner-program' ) . '</p></div>';
 			}
 		}
 
 		echo '<h2>' . esc_html__( 'Flag a violation', 'partner-program' ) . '</h2>';
 		if ( $flagged_id ) {
-			echo '<div class="notice notice-success"><p>' . sprintf( esc_html__( 'Affiliate #%d flagged.', 'partner-program' ), $flagged_id ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . sprintf( esc_html__( 'Affiliate #%d flagged.', 'partner-program' ), $flagged_id ) . '</p></div>';
 		}
 		echo '<form method="post">';
 		wp_nonce_field( 'pp_compliance_flag' );

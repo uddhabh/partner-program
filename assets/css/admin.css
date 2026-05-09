@@ -1,5 +1,29 @@
-.pp-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 1rem; }
-.pp-card { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 1rem; }
-.pp-card-title { color: #50575e; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
-.pp-card-value { font-size: 1.5rem; font-weight: 700; margin: .25rem 0; color: #1d2327; }
-.pp-card-sub { color: #50575e; font-size: .85rem; }
+/**
+ * Admin-only styles. The pp-grid + pp-card primitives live in
+ * components.css; we enqueue both on Partner Program admin screens so
+ * the dashboard cards share the exact same visual as the portal.
+ *
+ * Anything below is *only* relevant inside wp-admin and must NOT
+ * conflict with core styles like .button, .notice, .wp-list-table,
+ * .form-table, etc.
+ */
+
+/* Spacing helper for admin CTA rows (Dashboard "Generate payout batch"). */
+.pp-admin-cta { margin-top: 1.5em; }
+
+/* Spacing for prune/filter forms that don't live inside core's tablenav. */
+.pp-admin-toolbar { margin: 12px 0; }
+
+/* Compact row of inline action links inside a wp-list-table cell.
+ * Replaces a bunch of inline `style="margin-right:6px"` we used to emit.
+ * Mirrors the visual density of core's `.row-actions` but is always
+ * visible (not hover-only) since these are primary actions, not row
+ * meta. */
+.pp-row-actions a { margin-right: 6px; }
+.pp-row-actions a:last-child { margin-right: 0; }
+
+/* Inline checkbox group used in Settings -> Hold & Payouts -> enabled
+ * methods. Replaces inline `style="display:inline-block;margin-right:12px"`
+ * on each <label>. */
+.pp-checkbox-group { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.pp-checkbox-group label { display: inline-flex; align-items: center; gap: .25rem; }

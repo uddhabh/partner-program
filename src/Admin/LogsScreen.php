@@ -65,23 +65,23 @@ final class LogsScreen {
 		echo ' ';
 		printf(
 			'<a href="%s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=partner-program-settings#logs' ) ),
+			esc_url( admin_url( 'admin.php?page=partner-program-settings&tab=logs' ) ),
 			esc_html__( 'Edit retention setting', 'partner-program' )
 		);
 		echo '</p>';
 
-		echo '<form method="post" style="margin:12px 0;">';
+		echo '<form method="post" class="pp-admin-toolbar">';
 		wp_nonce_field( self::NONCE_ACTION );
 		echo '<label>' . esc_html__( 'Clear logs older than', 'partner-program' ) . ' ';
-		echo '<input type="number" name="pp_prune_days" min="1" value="' . esc_attr( (string) max( 1, $retention ) ) . '" style="width:6em;" /> ';
+		echo '<input type="number" name="pp_prune_days" min="1" class="small-text" value="' . esc_attr( (string) max( 1, $retention ) ) . '" /> ';
 		echo esc_html__( 'days', 'partner-program' ) . '</label> ';
-		echo '<button type="submit" name="pp_prune" value="1" class="button">'
+		echo '<button type="submit" name="pp_prune" value="1" class="button button-secondary">'
 			. esc_html__( 'Clear now', 'partner-program' )
 			. '</button>';
 		echo '</form>';
 
 		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>'
-			. '<th>ID</th><th>' . esc_html__( 'When', 'partner-program' ) . '</th>'
+			. '<th>' . esc_html__( 'ID', 'partner-program' ) . '</th><th>' . esc_html__( 'When', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Channel', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Level', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Message', 'partner-program' ) . '</th>'

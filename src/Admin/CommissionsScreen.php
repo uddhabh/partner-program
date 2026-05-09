@@ -13,6 +13,7 @@ use PartnerProgram\Domain\AffiliateRepo;
 use PartnerProgram\Domain\CommissionRepo;
 use PartnerProgram\Support\Capabilities;
 use PartnerProgram\Support\Money;
+use PartnerProgram\Support\Ui;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -35,14 +36,21 @@ final class CommissionsScreen {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Commissions', 'partner-program' ) . '</h1>';
 
 		if ( isset( $_GET['done'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Updated.', 'partner-program' ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Changes saved.', 'partner-program' ) . '</p></div>';
 		}
 
-		echo '<form method="get"><input type="hidden" name="page" value="partner-program-commissions" /><select name="status">';
-		foreach ( [ '' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'paid' => 'Paid', 'rejected' => 'Rejected', 'clawback' => 'Clawback' ] as $val => $label ) {
-			printf( '<option value="%s" %s>%s</option>', esc_attr( $val ), selected( $status, $val, false ), esc_html( $label ) );
-		}
-		echo '</select> ' . get_submit_button( __( 'Filter', 'partner-program' ), 'secondary', 'submit', false ) . '</form>';
+		Ui::status_filter(
+			'partner-program-commissions',
+			$status,
+			[
+				''         => __( 'All', 'partner-program' ),
+				'pending'  => __( 'Pending', 'partner-program' ),
+				'approved' => __( 'Approved', 'partner-program' ),
+				'paid'     => __( 'Paid', 'partner-program' ),
+				'rejected' => __( 'Rejected', 'partner-program' ),
+				'clawback' => __( 'Clawback', 'partner-program' ),
+			]
+		);
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=partner-program-commissions' ) ) . '">';
 		wp_nonce_field( 'pp_bulk_commissions' );
@@ -54,8 +62,9 @@ final class CommissionsScreen {
 		echo '</select> ' . get_submit_button( __( 'Apply', 'partner-program' ), 'secondary', 'apply_bulk', false );
 
 		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>'
-			. '<td><input type="checkbox" id="cb-select-all" onclick="document.querySelectorAll(\'input[name=\\\'ids[]\\\']\').forEach(c=>c.checked=this.checked)" /></td>'
-			. '<th>ID</th><th>' . esc_html__( 'Affiliate', 'partner-program' ) . '</th>'
+			. '<td id="cb" class="manage-column column-cb check-column"><label class="screen-reader-text" for="cb-select-all">' . esc_html__( 'Select all', 'partner-program' ) . '</label>'
+			. '<input type="checkbox" id="cb-select-all" onclick="document.querySelectorAll(\'input[name=\\\'ids[]\\\']\').forEach(c=>c.checked=this.checked)" /></td>'
+			. '<th>' . esc_html__( 'ID', 'partner-program' ) . '</th><th>' . esc_html__( 'Affiliate', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Order', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Source', 'partner-program' ) . '</th>'
 			. '<th>' . esc_html__( 'Base', 'partner-program' ) . '</th>'
@@ -70,7 +79,7 @@ final class CommissionsScreen {
 			$aff  = $affiliates[ (int) $row['affiliate_id'] ] ?? null;
 			$user = $aff ? get_userdata( (int) $aff['user_id'] ) : null;
 			echo '<tr>';
-			echo '<td><input type="checkbox" name="ids[]" value="' . (int) $row['id'] . '" /></td>';
+			echo '<th scope="row" class="check-column"><input type="checkbox" name="ids[]" value="' . (int) $row['id'] . '" /></th>';
 			echo '<td>#' . (int) $row['id'] . '</td>';
 			echo '<td>' . esc_html( $user ? $user->user_email : '#' . $row['affiliate_id'] ) . '</td>';
 			$order_id = isset( $row['order_id'] ) && '' !== $row['order_id'] && null !== $row['order_id'] ? (int) $row['order_id'] : 0;

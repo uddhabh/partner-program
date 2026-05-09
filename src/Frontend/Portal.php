@@ -38,7 +38,8 @@ final class Portal {
 	}
 
 	public function enqueue(): void {
-		wp_register_style( 'partner-program-portal', PARTNER_PROGRAM_URL . 'assets/css/portal.css', [], PARTNER_PROGRAM_VERSION );
+		wp_register_style( 'partner-program-components', PARTNER_PROGRAM_URL . 'assets/css/components.css', [], PARTNER_PROGRAM_VERSION );
+		wp_register_style( 'partner-program-portal', PARTNER_PROGRAM_URL . 'assets/css/portal.css', [ 'partner-program-components' ], PARTNER_PROGRAM_VERSION );
 		wp_register_script( 'partner-program-portal', PARTNER_PROGRAM_URL . 'assets/js/portal.js', [], PARTNER_PROGRAM_VERSION, true );
 	}
 

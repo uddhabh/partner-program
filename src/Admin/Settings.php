@@ -53,7 +53,13 @@ final class Settings {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Partner Program Settings', 'partner-program' ) . '</h1>';
 
 		if ( isset( $_GET['saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'partner-program' ) . '</p></div>';
+			$message = 'iotools' === $active
+				? __( 'Settings imported.', 'partner-program' )
+				: __( 'Settings saved.', 'partner-program' );
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+		}
+		if ( 'iotools' === $active && isset( $_GET['import_error'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Import failed. Upload a valid Partner Program JSON export (max 1 MB).', 'partner-program' ) . '</p></div>';
 		}
 
 		echo '<h2 class="nav-tab-wrapper">';
@@ -260,56 +266,303 @@ final class Settings {
 			'schedule',
 			__( 'Schedule', 'partner-program' ),
 			(string) $s->get( 'hold_payouts.schedule' ),
-			[ 'monthly' => 'Monthly', 'weekly' => 'Weekly', 'manual' => 'Manual' ]
+			[
+				'monthly' => __( 'Monthly', 'partner-program' ),
+				'weekly'  => __( 'Weekly', 'partner-program' ),
+				'manual'  => __( 'Manual', 'partner-program' ),
+			]
 		);
 		self::field_text( 'payout_day', __( 'Payout day-of-month (1-28)', 'partner-program' ), (string) $s->get( 'hold_payouts.payout_day' ), '', 'number' );
 		self::field_text( 'min_threshold', __( 'Minimum payout threshold', 'partner-program' ), (string) $s->get( 'hold_payouts.min_threshold' ), '', 'number' );
 
 		$enabled = (array) $s->get( 'hold_payouts.enabled_methods', [] );
 		echo '<tr><th scope="row">' . esc_html__( 'Enabled payout methods', 'partner-program' ) . '</th><td>';
+		echo '<fieldset class="pp-checkbox-group">';
 		foreach ( [ 'ach' => 'ACH', 'paypal' => 'PayPal', 'zelle' => 'Zelle', 'cashapp' => 'CashApp', 'wise' => 'Wise', 'check' => 'Check' ] as $key => $label ) {
 			printf(
-				'<label style="display:inline-block;margin-right:12px;"><input type="checkbox" name="enabled_methods[]" value="%s" %s /> %s</label>',
+				'<label><input type="checkbox" name="enabled_methods[]" value="%s" %s /> %s</label>',
 				esc_attr( $key ),
 				in_array( $key, $enabled, true ) ? 'checked' : '',
 				esc_html( $label )
 			);
 		}
+		echo '</fieldset>';
 		echo '</td></tr>';
 		echo '</table>';
 	}
 
 	private static function tab_application( SettingsRepo $s ): void {
-		echo '<p class="description">' . esc_html__( 'Per-field requirements (including the ID / business proof upload) are controlled in the form fields table below — toggle the field\'s "Required" checkbox or remove the row to drop it from the form.', 'partner-program' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Edit the public application form below. Reorder rows with the ▲▼ buttons, add or remove rows with the buttons in each row, and toggle the Required column to mark a field mandatory. For Select fields, use the inline editor in the Options column to manage choices.', 'partner-program' ) . '</p>';
 
 		echo '<h2>' . esc_html__( 'Form fields', 'partner-program' ) . '</h2>';
-		echo '<table class="widefat striped"><thead><tr><th>Key</th><th>Label</th><th>Type</th><th>Required</th></tr></thead><tbody>';
+		echo '<table class="widefat striped pp-fields-table"><thead><tr>'
+			. '<th class="pp-col-handle" scope="col"><span class="screen-reader-text">' . esc_html__( 'Reorder', 'partner-program' ) . '</span></th>'
+			. '<th scope="col">' . esc_html__( 'Key', 'partner-program' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Label', 'partner-program' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Type', 'partner-program' ) . '</th>'
+			. '<th class="pp-col-required" scope="col">' . esc_html__( 'Required', 'partner-program' ) . '</th>'
+			. '<th scope="col">' . esc_html__( 'Options (select / checkboxes)', 'partner-program' ) . '</th>'
+			. '<th class="pp-col-actions" scope="col"><span class="screen-reader-text">' . esc_html__( 'Actions', 'partner-program' ) . '</span></th>'
+			. '</tr></thead><tbody>';
 		$fields = (array) $s->get( 'application.fields', [] );
-		$fields[] = [ 'key' => '', 'label' => '', 'type' => 'text', 'required' => false ];
 		foreach ( $fields as $i => $f ) {
-			printf(
-				'<tr><td><input type="text" name="fields[%1$d][key]" value="%2$s" /></td>'
-				. '<td><input type="text" name="fields[%1$d][label]" value="%3$s" /></td>'
-				. '<td>%4$s</td>'
-				. '<td><input type="checkbox" name="fields[%1$d][required]" value="1" %5$s /></td></tr>',
-				(int) $i,
-				esc_attr( (string) ( $f['key'] ?? '' ) ),
-				esc_attr( (string) ( $f['label'] ?? '' ) ),
-				self::type_select( (int) $i, (string) ( $f['type'] ?? 'text' ) ),
-				! empty( $f['required'] ) ? 'checked' : ''
-			);
+			echo self::render_field_row( (array) $f, (string) $i ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		echo '</tbody></table>';
+
+		printf(
+			'<p><button type="button" class="button pp-field-add">%s</button></p>',
+			esc_html__( '+ Add field', 'partner-program' )
+		);
+
+		// Templates the JS clones when adding a new field row or option row.
+		// Placeholders: __I__ = field index, __J__ = option index. Both are
+		// replaced with random strings on insert so they can't collide with
+		// existing numeric indices coming from the server-rendered rows.
+		echo '<template id="pp-field-row-template">' . self::render_field_row( [], '__I__' ) . '</template>';
+		echo '<template id="pp-option-row-template">' . self::render_option_row( [], '__I__', '__J__' ) . '</template>';
+
+		self::print_application_styles_and_script();
 	}
 
-	private static function type_select( int $i, string $current ): string {
-		$opts = [ 'text', 'email', 'textarea', 'select', 'checkbox', 'file' ];
-		$out  = '<select name="fields[' . $i . '][type]">';
+	/**
+	 * Render one field row of the Application Form admin table.
+	 *
+	 * `$idx` is interpolated into every input name so the row submits as
+	 * `fields[$idx][...]`. We pass it as a string (not int) so the row can
+	 * also be used as a JS clone template with placeholder indices.
+	 *
+	 * @param array<string, mixed> $f
+	 */
+	private static function render_field_row( array $f, string $idx ): string {
+		$type     = (string) ( $f['type'] ?? 'text' );
+		$key      = (string) ( $f['key'] ?? '' );
+		$label    = (string) ( $f['label'] ?? '' );
+		$required = ! empty( $f['required'] );
+		$options  = (array) ( $f['options'] ?? [] );
+
+		$option_rows = '';
+		foreach ( $options as $j => $opt ) {
+			$option_rows .= self::render_option_row( is_array( $opt ) ? $opt : [ 'value' => (string) $opt ], $idx, (string) $j );
+		}
+
+		ob_start();
+		?>
+<tr class="pp-field-row" data-type="<?php echo esc_attr( $type ); ?>">
+	<td class="pp-col-handle">
+		<button type="button" class="button-link pp-move-up" aria-label="<?php esc_attr_e( 'Move up', 'partner-program' ); ?>">▲</button>
+		<button type="button" class="button-link pp-move-down" aria-label="<?php esc_attr_e( 'Move down', 'partner-program' ); ?>">▼</button>
+	</td>
+	<td><input type="text" name="fields[<?php echo esc_attr( $idx ); ?>][key]" value="<?php echo esc_attr( $key ); ?>" placeholder="<?php esc_attr_e( 'unique_key', 'partner-program' ); ?>" /></td>
+	<td><input type="text" name="fields[<?php echo esc_attr( $idx ); ?>][label]" value="<?php echo esc_attr( $label ); ?>" placeholder="<?php esc_attr_e( 'Label shown to applicants', 'partner-program' ); ?>" /></td>
+	<td><?php echo self::type_select( $idx, $type ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
+	<td class="pp-col-required"><input type="checkbox" name="fields[<?php echo esc_attr( $idx ); ?>][required]" value="1" <?php checked( $required ); ?> /></td>
+	<td class="pp-field-options-cell">
+		<table class="pp-options-table"><tbody>
+			<?php echo $option_rows; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		</tbody></table>
+		<p>
+			<button type="button" class="button button-small pp-option-add">+ <?php esc_html_e( 'Add option', 'partner-program' ); ?></button>
+		</p>
+	</td>
+	<td class="pp-col-actions">
+		<button type="button" class="button-link delete pp-field-remove" aria-label="<?php esc_attr_e( 'Delete field', 'partner-program' ); ?>"><?php esc_html_e( 'Delete', 'partner-program' ); ?></button>
+	</td>
+</tr>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Render one option sub-row inside a select field's Options cell.
+	 * Submits as `fields[$field_idx][options][$opt_idx][value|label]`.
+	 *
+	 * @param array<string, mixed> $opt
+	 */
+	private static function render_option_row( array $opt, string $field_idx, string $opt_idx ): string {
+		$value = (string) ( $opt['value'] ?? '' );
+		$label = (string) ( $opt['label'] ?? '' );
+		ob_start();
+		?>
+<tr class="pp-option-row">
+	<td><input type="text" name="fields[<?php echo esc_attr( $field_idx ); ?>][options][<?php echo esc_attr( $opt_idx ); ?>][value]" value="<?php echo esc_attr( $value ); ?>" placeholder="<?php esc_attr_e( 'value', 'partner-program' ); ?>" /></td>
+	<td><input type="text" name="fields[<?php echo esc_attr( $field_idx ); ?>][options][<?php echo esc_attr( $opt_idx ); ?>][label]" value="<?php echo esc_attr( $label ); ?>" placeholder="<?php esc_attr_e( 'Label', 'partner-program' ); ?>" /></td>
+	<td><button type="button" class="button-link pp-option-remove" aria-label="<?php esc_attr_e( 'Remove option', 'partner-program' ); ?>">×</button></td>
+</tr>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Normalize the raw options array submitted from the per-row option
+	 * editor into the canonical `[ ['value'=>..., 'label'=>...], ... ]`
+	 * shape consumed by `templates/application/form.php`.
+	 *
+	 * - Skips entirely empty rows (the user clicked Add option then never
+	 *   filled either field).
+	 * - If only one of value/label is filled, the other is derived from it.
+	 * - Reindexes numerically so JSON storage stays a list, not an object.
+	 *
+	 * @param array<int|string, mixed> $rows Raw `$_POST['fields'][i]['options']` value.
+	 * @return array<int, array{value:string,label:string}>
+	 */
+	private static function sanitize_options_input( array $rows ): array {
+		$out = [];
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$value = sanitize_key( (string) ( $row['value'] ?? '' ) );
+			$label = sanitize_text_field( (string) ( $row['label'] ?? '' ) );
+			if ( '' === $value && '' === $label ) {
+				continue;
+			}
+			if ( '' === $value ) { $value = sanitize_key( $label ); }
+			if ( '' === $label ) { $label = $value; }
+			if ( '' === $value ) {
+				continue;
+			}
+			$out[] = [ 'value' => $value, 'label' => $label ];
+		}
+		return $out;
+	}
+
+	private static function type_select( string $idx, string $current ): string {
+		$opts = [ 'text', 'email', 'textarea', 'select', 'checkbox', 'checkboxes', 'file' ];
+		$out  = '<select name="fields[' . esc_attr( $idx ) . '][type]">';
 		foreach ( $opts as $t ) {
 			$out .= '<option value="' . esc_attr( $t ) . '" ' . selected( $current, $t, false ) . '>' . esc_html( $t ) . '</option>';
 		}
 		$out .= '</select>';
 		return $out;
+	}
+
+	/**
+	 * Inline CSS and JS that powers the Application Form fields editor.
+	 *
+	 * Kept inline (no separate enqueue) because it's only relevant on this
+	 * single settings tab; conditional enqueue would add more complexity
+	 * than the byte savings are worth. No external dependencies.
+	 */
+	private static function print_application_styles_and_script(): void {
+		?>
+<style>
+.pp-fields-table th.pp-col-handle,
+.pp-fields-table td.pp-col-handle { width: 1%; white-space: nowrap; }
+.pp-fields-table th.pp-col-required,
+.pp-fields-table td.pp-col-required { width: 1%; text-align: center; }
+.pp-fields-table th.pp-col-actions,
+.pp-fields-table td.pp-col-actions { width: 1%; text-align: right; white-space: nowrap; }
+.pp-fields-table .pp-move-up,
+.pp-fields-table .pp-move-down { padding: 0 .25em; font-size: 14px; line-height: 1; vertical-align: middle; }
+.pp-fields-table input[type="text"] { width: 100%; }
+.pp-fields-table .pp-options-table { width: 100%; margin: 0; border: 0; }
+.pp-fields-table .pp-options-table td { padding: 2px 4px; border: 0; }
+.pp-fields-table .pp-options-table td:first-child { padding-left: 0; }
+.pp-fields-table .pp-options-table td:last-child { width: 1%; text-align: right; padding-right: 0; }
+.pp-fields-table .pp-option-remove { color: #b32d2e; font-weight: 600; font-size: 18px; line-height: 1; }
+.pp-fields-table .pp-field-options-cell.is-disabled { opacity: .35; pointer-events: none; }
+.pp-fields-table .pp-field-options-cell.is-disabled::after { content: attr(data-disabled-hint); display: block; font-size: 11px; color: #646970; margin-top: 4px; }
+.pp-field-remove { color: #b32d2e; }
+</style>
+<script>
+(function () {
+	var table = document.querySelector('.pp-fields-table');
+	var fieldTpl = document.getElementById('pp-field-row-template');
+	var optionTpl = document.getElementById('pp-option-row-template');
+	var addFieldBtn = document.querySelector('.pp-field-add');
+	if (!table || !fieldTpl || !optionTpl || !addFieldBtn) { return; }
+
+	var DISABLED_HINT = <?php echo wp_json_encode( __( 'Options apply only to fields of type "select" or "checkboxes".', 'partner-program' ) ); ?>;
+	var TYPES_WITH_OPTIONS = ['select', 'checkboxes'];
+
+	function uid() { return 'n' + Math.random().toString(36).slice(2, 9); }
+
+	function fieldIndexOf(row) {
+		var input = row.querySelector('input[name^="fields["]');
+		var match = input && input.name.match(/^fields\[([^\]]+)\]/);
+		return match ? match[1] : '';
+	}
+
+	function syncRow(row) {
+		var typeSel = row.querySelector('select[name$="[type]"]');
+		var type = typeSel ? typeSel.value : '';
+		row.dataset.type = type;
+		var cell = row.querySelector('.pp-field-options-cell');
+		if (!cell) { return; }
+		var disabled = (TYPES_WITH_OPTIONS.indexOf(type) === -1);
+		cell.classList.toggle('is-disabled', disabled);
+		cell.setAttribute('data-disabled-hint', disabled ? DISABLED_HINT : '');
+		cell.querySelectorAll('input, button').forEach(function (el) { el.disabled = disabled; });
+	}
+
+	function instantiate(tpl, replacements) {
+		var html = tpl.innerHTML;
+		Object.keys(replacements).forEach(function (k) {
+			html = html.split(k).join(replacements[k]);
+		});
+		var wrap = document.createElement('tbody');
+		wrap.innerHTML = html.trim();
+		return wrap.firstElementChild;
+	}
+
+	function addField() {
+		var row = instantiate(fieldTpl, { '__I__': uid() });
+		table.querySelector('tbody').appendChild(row);
+		syncRow(row);
+		var keyInput = row.querySelector('input[name$="[key]"]');
+		if (keyInput) { keyInput.focus(); }
+	}
+
+	function addOption(fieldRow) {
+		var fieldIdx = fieldIndexOf(fieldRow);
+		var optRow = instantiate(optionTpl, { '__I__': fieldIdx, '__J__': uid() });
+		fieldRow.querySelector('.pp-options-table tbody').appendChild(optRow);
+		var first = optRow.querySelector('input');
+		if (first) { first.focus(); }
+	}
+
+	addFieldBtn.addEventListener('click', addField);
+
+	table.addEventListener('click', function (e) {
+		var t = e.target;
+		var fieldRow = t.closest('tr.pp-field-row');
+		if (!fieldRow) { return; }
+		if (t.classList.contains('pp-field-remove')) {
+			fieldRow.remove();
+			return;
+		}
+		if (t.classList.contains('pp-move-up')) {
+			var prev = fieldRow.previousElementSibling;
+			if (prev) { fieldRow.parentNode.insertBefore(fieldRow, prev); }
+			return;
+		}
+		if (t.classList.contains('pp-move-down')) {
+			var next = fieldRow.nextElementSibling;
+			if (next) { fieldRow.parentNode.insertBefore(next, fieldRow); }
+			return;
+		}
+		if (t.classList.contains('pp-option-add')) {
+			addOption(fieldRow);
+			return;
+		}
+		if (t.classList.contains('pp-option-remove')) {
+			var optRow = t.closest('tr.pp-option-row');
+			if (optRow) { optRow.remove(); }
+			return;
+		}
+	});
+
+	table.addEventListener('change', function (e) {
+		if (e.target.matches && e.target.matches('select[name$="[type]"]')) {
+			syncRow(e.target.closest('tr.pp-field-row'));
+		}
+	});
+
+	table.querySelectorAll('tr.pp-field-row').forEach(syncRow);
+})();
+</script>
+		<?php
 	}
 
 	private static function tab_compliance( SettingsRepo $s ): void {
@@ -364,10 +617,12 @@ final class Settings {
 			'<form method="post" enctype="multipart/form-data" action="%s">'
 			. '<input type="hidden" name="action" value="partner_program_import_settings" />'
 			. '<input type="hidden" name="_wpnonce" value="%s" />'
-			. '<input type="file" name="settings_file" accept=".json" required /> %s</form>',
+			. '<input type="file" name="settings_file" accept=".json,application/json" required /> %s'
+			. '<p class="description">%s</p></form>',
 			esc_url( admin_url( 'admin-post.php' ) ),
 			esc_attr( $nonce ),
-			get_submit_button( __( 'Import settings', 'partner-program' ), 'primary', 'submit', false )
+			get_submit_button( __( 'Import settings', 'partner-program' ), 'primary', 'submit', false ),
+			esc_html__( 'Only JSON files exported from this plugin are accepted.', 'partner-program' )
 		);
 	}
 
@@ -453,31 +708,23 @@ final class Settings {
 
 			case 'application':
 				$rows  = isset( $_POST['fields'] ) && is_array( $_POST['fields'] ) ? wp_unslash( (array) $_POST['fields'] ) : [];
-				// Index existing fields by key so we can preserve per-field metadata
-				// (e.g. select `options`) that the admin UI doesn't currently expose.
-				$existing_by_key = [];
-				foreach ( (array) $repo->get( 'application.fields', [] ) as $existing ) {
-					$existing_key = isset( $existing['key'] ) ? (string) $existing['key'] : '';
-					if ( '' !== $existing_key ) {
-						$existing_by_key[ $existing_key ] = $existing;
-					}
-				}
 				$clean = [];
 				foreach ( $rows as $row ) {
 					if ( ! is_array( $row ) ) { continue; }
 					$key = sanitize_key( (string) ( $row['key'] ?? '' ) );
 					if ( '' === $key ) { continue; }
+					$type  = sanitize_key( (string) ( $row['type'] ?? 'text' ) );
 					$field = [
 						'key'      => $key,
 						'label'    => sanitize_text_field( (string) ( $row['label'] ?? $key ) ),
-						'type'     => sanitize_key( (string) ( $row['type'] ?? 'text' ) ),
+						'type'     => $type,
 						'required' => ! empty( $row['required'] ),
 					];
-					// Carry over options (and any other unmanaged keys) from the
-					// previously-saved field with the same key so re-saving doesn't
-					// silently wipe select choices.
-					if ( isset( $existing_by_key[ $key ]['options'] ) ) {
-						$field['options'] = $existing_by_key[ $key ]['options'];
+					if ( in_array( $type, [ 'select', 'checkboxes' ], true ) ) {
+						$options = self::sanitize_options_input( (array) ( $row['options'] ?? [] ) );
+						if ( $options ) {
+							$field['options'] = $options;
+						}
 					}
 					$clean[] = $field;
 				}

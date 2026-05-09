@@ -2,28 +2,18 @@
 /** @var int $pending_cents @var int $approved_cents @var int $paid_cents @var array $tier_progress @var array $tiers */
 defined( 'ABSPATH' ) || exit;
 use PartnerProgram\Support\Money;
+use PartnerProgram\Support\Ui;
 
-$current_tier = $tier_progress['current_tier'] ?? null;
-$next_tier    = $tier_progress['next_tier'] ?? null;
+$current_tier  = $tier_progress['current_tier'] ?? null;
+$next_tier     = $tier_progress['next_tier'] ?? null;
 $current_sales = (int) ( $tier_progress['current_sales_cents'] ?? 0 );
+
+Ui::stat_cards( [
+	[ 'title' => __( 'Pending', 'partner-program' ),  'value' => Money::format( $pending_cents ),  'sub' => __( 'In hold period', 'partner-program' ) ],
+	[ 'title' => __( 'Approved', 'partner-program' ), 'value' => Money::format( $approved_cents ), 'sub' => __( 'Eligible for next payout', 'partner-program' ) ],
+	[ 'title' => __( 'Paid', 'partner-program' ),     'value' => Money::format( $paid_cents ),     'sub' => __( 'Lifetime', 'partner-program' ) ],
+] );
 ?>
-<div class="pp-grid">
-	<div class="pp-card">
-		<div class="pp-card-title"><?php esc_html_e( 'Pending', 'partner-program' ); ?></div>
-		<div class="pp-card-value"><?php echo esc_html( Money::format( $pending_cents ) ); ?></div>
-		<div class="pp-card-sub"><?php esc_html_e( 'In hold period', 'partner-program' ); ?></div>
-	</div>
-	<div class="pp-card">
-		<div class="pp-card-title"><?php esc_html_e( 'Approved', 'partner-program' ); ?></div>
-		<div class="pp-card-value"><?php echo esc_html( Money::format( $approved_cents ) ); ?></div>
-		<div class="pp-card-sub"><?php esc_html_e( 'Eligible for next payout', 'partner-program' ); ?></div>
-	</div>
-	<div class="pp-card">
-		<div class="pp-card-title"><?php esc_html_e( 'Paid', 'partner-program' ); ?></div>
-		<div class="pp-card-value"><?php echo esc_html( Money::format( $paid_cents ) ); ?></div>
-		<div class="pp-card-sub"><?php esc_html_e( 'Lifetime', 'partner-program' ); ?></div>
-	</div>
-</div>
 
 <h3 class="pp-mt-xl"><?php esc_html_e( 'This month', 'partner-program' ); ?></h3>
 <p>

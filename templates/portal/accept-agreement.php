@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 	<form method="post" action="<?php echo esc_url( $action ); ?>" class="pp-form">
 		<input type="hidden" name="action" value="pp_portal_accept_agreement" />
 		<?php echo $nonce; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-		<label><input type="checkbox" required /> <?php esc_html_e( 'I have read and agree to the terms above.', 'partner-program' ); ?></label>
+		<label class="pp-check-text"><input type="checkbox" name="accepted" value="1" required /> <?php esc_html_e( 'I have read and agree to the terms above.', 'partner-program' ); ?></label>
 		<button type="submit" class="pp-btn pp-btn-primary"><?php esc_html_e( 'Accept and continue', 'partner-program' ); ?></button>
 	</form>
 </div>

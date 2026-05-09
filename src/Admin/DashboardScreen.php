@@ -15,6 +15,7 @@ use PartnerProgram\Domain\PayoutRepo;
 use PartnerProgram\Payouts\PayoutManager;
 use PartnerProgram\Support\Encryption;
 use PartnerProgram\Support\Money;
+use PartnerProgram\Support\Ui;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -24,7 +25,7 @@ final class DashboardScreen {
 		global $wpdb;
 
 		if ( ! Encryption::is_available() ) {
-			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Encryption unavailable.', 'partner-program' ) . '</strong> '
+			echo '<div class="notice notice-error is-dismissible"><p><strong>' . esc_html__( 'Encryption unavailable.', 'partner-program' ) . '</strong> '
 				. esc_html__( 'The PHP sodium extension is not loaded on this server, so partners cannot save payout details. Ask your host to enable the sodium extension (bundled with PHP 7.2+).', 'partner-program' )
 				. '</p></div>';
 		}
@@ -43,7 +44,7 @@ final class DashboardScreen {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Partner Program', 'partner-program' ) . '</h1>';
 
 		if ( $pending_method_n > 0 ) {
-			echo '<div class="notice notice-warning"><p><strong>'
+			echo '<div class="notice notice-warning is-dismissible"><p><strong>'
 				. esc_html(
 					sprintf(
 						/* translators: %d: number of partners. */
@@ -63,32 +64,24 @@ final class DashboardScreen {
 				. '</a></p></div>';
 		}
 
-		echo '<div class="pp-grid">';
-		self::card( __( 'Active partners', 'partner-program' ), (string) $active, sprintf( __( '%d total', 'partner-program' ), $total_affiliates ) );
-		self::card( __( 'Pending applications', 'partner-program' ), (string) $pending_apps, '' );
-		self::card( __( 'Pending commissions', 'partner-program' ), Money::format( $pending_cents ), __( 'In hold period', 'partner-program' ) );
-		self::card( __( 'Approved (unpaid)', 'partner-program' ), Money::format( $approved_cents ), __( 'Ready for next payout batch', 'partner-program' ) );
-		self::card( __( 'Paid', 'partner-program' ), Money::format( $paid_cents ), __( 'Lifetime', 'partner-program' ) );
-		self::card( __( 'Queued payouts', 'partner-program' ), (string) $queued_payouts, '' );
-		self::card(
-			__( 'Pending payout setup', 'partner-program' ),
-			(string) $pending_method_n,
-			__( 'Approved partners with a balance but no method', 'partner-program' )
-		);
-		echo '</div>';
+		Ui::stat_cards( [
+			[
+				'title' => __( 'Active partners', 'partner-program' ),
+				'value' => (string) $active,
+				/* translators: %d: total partner count. */
+				'sub'   => sprintf( __( '%d total', 'partner-program' ), $total_affiliates ),
+			],
+			[ 'title' => __( 'Pending applications', 'partner-program' ), 'value' => (string) $pending_apps ],
+			[ 'title' => __( 'Pending commissions', 'partner-program' ), 'value' => Money::format( $pending_cents ),  'sub' => __( 'In hold period', 'partner-program' ) ],
+			[ 'title' => __( 'Approved (unpaid)', 'partner-program' ),   'value' => Money::format( $approved_cents ), 'sub' => __( 'Ready for next payout batch', 'partner-program' ) ],
+			[ 'title' => __( 'Paid', 'partner-program' ),                'value' => Money::format( $paid_cents ),     'sub' => __( 'Lifetime', 'partner-program' ) ],
+			[ 'title' => __( 'Queued payouts', 'partner-program' ),      'value' => (string) $queued_payouts ],
+			[ 'title' => __( 'Pending payout setup', 'partner-program' ),'value' => (string) $pending_method_n,       'sub' => __( 'Approved partners with a balance but no method', 'partner-program' ) ],
+		] );
 
-		echo '<p style="margin-top:1.5em;"><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=partner-program-payouts' ) ) . '">' . esc_html__( 'Generate payout batch', 'partner-program' ) . '</a> ';
+		echo '<p class="pp-admin-cta"><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=partner-program-payouts' ) ) . '">' . esc_html__( 'Generate payout batch', 'partner-program' ) . '</a> ';
 		echo '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=partner-program-settings' ) ) . '">' . esc_html__( 'Settings', 'partner-program' ) . '</a></p>';
 
-		echo '</div>';
-	}
-
-	private static function card( string $title, string $value, string $sub ): void {
-		echo '<div class="pp-card"><div class="pp-card-title">' . esc_html( $title ) . '</div>';
-		echo '<div class="pp-card-value">' . esc_html( $value ) . '</div>';
-		if ( $sub ) {
-			echo '<div class="pp-card-sub">' . esc_html( $sub ) . '</div>';
-		}
 		echo '</div>';
 	}
 }
