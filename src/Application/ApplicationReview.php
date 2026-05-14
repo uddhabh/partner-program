@@ -13,7 +13,6 @@ use PartnerProgram\Domain\AffiliateRepo;
 use PartnerProgram\Domain\AgreementRepo;
 use PartnerProgram\Domain\ApplicationRepo;
 use PartnerProgram\Support\Capabilities;
-use PartnerProgram\Support\SettingsRepo;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -52,6 +51,7 @@ final class ApplicationReview {
 					'reviewed_at'  => current_time( 'mysql', true ),
 				]
 			);
+			do_action( 'partner_program_application_rejected', $application_id, $notes );
 		}
 
 		$args = [ 'page' => 'partner-program-applications', 'id' => $application_id ];
@@ -146,26 +146,6 @@ final class ApplicationReview {
 		);
 
 		do_action( 'partner_program_affiliate_approved', $affiliate_id );
-		$this->send_welcome_email( (int) $user_id, $affiliate_id );
 		return true;
-	}
-
-	private function send_welcome_email( int $user_id, int $affiliate_id ): void {
-		$user = get_user_by( 'id', $user_id );
-		if ( ! $user ) {
-			return;
-		}
-		$settings = new SettingsRepo();
-		$program  = (string) $settings->get( 'general.program_name', __( 'Partner Program', 'partner-program' ) );
-		$portal_id = (int) get_option( 'partner_program_portal_page_id' );
-		$portal_url = $portal_id ? get_permalink( $portal_id ) : home_url( '/partner-portal/' );
-
-		$subject = sprintf( __( 'You are approved for %s', 'partner-program' ), $program );
-		$body    = sprintf( __( 'Hi %s,', 'partner-program' ), $user->display_name ) . "\n\n";
-		$body   .= sprintf( __( 'Your application for the %s has been approved.', 'partner-program' ), $program ) . "\n";
-		$body   .= __( 'Log in to your partner portal to grab your referral link, coupon code, and marketing materials:', 'partner-program' ) . "\n";
-		$body   .= $portal_url . "\n\n";
-
-		wp_mail( $user->user_email, $subject, $body );
 	}
 }

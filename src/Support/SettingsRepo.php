@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace PartnerProgram\Support;
 
+use PartnerProgram\Emails\EventRegistry;
+
 defined( 'ABSPATH' ) || exit;
 
 final class SettingsRepo {
@@ -103,6 +105,12 @@ final class SettingsRepo {
 				// Days of history to retain in the pp_logs table. 0 = keep
 				// forever; the daily prune cron is a no-op in that case.
 				'retention_days' => 90,
+			],
+			'emails'       => [
+				'from_name'   => '',
+				'from_email'  => '',
+				'footer_text' => '',
+				'events'      => EventRegistry::settings_defaults(),
 			],
 		];
 	}

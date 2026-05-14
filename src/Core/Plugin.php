@@ -16,6 +16,7 @@ use PartnerProgram\Application\ApplicationReview;
 use PartnerProgram\Application\PrivateUploads;
 use PartnerProgram\Cli\Commands;
 use PartnerProgram\Compliance\AgreementManager;
+use PartnerProgram\Emails\Mailer;
 use PartnerProgram\Frontend\Portal;
 use PartnerProgram\Payouts\PayoutManager;
 use PartnerProgram\Rest\RestController;
@@ -117,6 +118,7 @@ final class Plugin {
 		( new CommissionEngine() )->register();
 		( new PayoutManager() )->register();
 		( new AgreementManager() )->register();
+		( new Mailer() )->register();
 		( new RestController() )->register();
 	}
 }

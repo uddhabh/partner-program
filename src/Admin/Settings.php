@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace PartnerProgram\Admin;
 
 use PartnerProgram\Domain\TierResolver;
+use PartnerProgram\Emails\EventRegistry;
 use PartnerProgram\Support\Capabilities;
 use PartnerProgram\Support\SettingsRepo;
 
@@ -42,6 +43,7 @@ final class Settings {
 			'application'  => __( 'Application Form', 'partner-program' ),
 			'compliance'   => __( 'Compliance', 'partner-program' ),
 			'exclusions'   => __( 'Exclusions', 'partner-program' ),
+			'emails'       => __( 'Emails', 'partner-program' ),
 			'logs'         => __( 'Logs', 'partner-program' ),
 			'iotools'      => __( 'Import / Export', 'partner-program' ),
 		];
@@ -95,6 +97,7 @@ final class Settings {
 			case 'application':   self::tab_application( $settings ); break;
 			case 'compliance':    self::tab_compliance( $settings ); break;
 			case 'exclusions':    self::tab_exclusions( $settings ); break;
+			case 'emails':        self::tab_emails( $settings ); break;
 			case 'logs':          self::tab_logs( $settings ); break;
 		}
 
@@ -240,6 +243,96 @@ final class Settings {
 			__( 'Only applies when WooCommerce Subscriptions is active.', 'partner-program' )
 		);
 		echo '</table>';
+	}
+
+	private static function tab_emails( SettingsRepo $s ): void {
+		echo '<p class="description">' . esc_html__( 'Customize transactional emails sent by the plugin. Leave subject or body blank to use the built-in default. Tokens like {program_name} are replaced at send time — see each event\'s help text for available tokens.', 'partner-program' ) . '</p>';
+
+		echo '<h2>' . esc_html__( 'Sender', 'partner-program' ) . '</h2>';
+		echo '<table class="form-table">';
+		self::field_text(
+			'emails_from_name',
+			__( 'From name', 'partner-program' ),
+			(string) $s->get( 'emails.from_name', '' ),
+			__( 'Defaults to the program name.', 'partner-program' )
+		);
+		self::field_text(
+			'emails_from_email',
+			__( 'From email', 'partner-program' ),
+			(string) $s->get( 'emails.from_email', '' ),
+			__( 'Defaults to the support email.', 'partner-program' ),
+			'email'
+		);
+		printf(
+			'<tr><th scope="row"><label for="emails_footer_text">%s</label></th><td><textarea id="emails_footer_text" name="emails_footer_text" rows="2" cols="60">%s</textarea><p class="description">%s</p></td></tr>',
+			esc_html__( 'Footer text', 'partner-program' ),
+			esc_textarea( (string) $s->get( 'emails.footer_text', '' ) ),
+			esc_html__( 'Shown at the bottom of every email. Leave blank for the default.', 'partner-program' )
+		);
+		echo '</table>';
+
+		echo '<h2>' . esc_html__( 'Events', 'partner-program' ) . '</h2>';
+
+		foreach ( EventRegistry::all() as $key => $event ) {
+			$config  = (array) $s->get( 'emails.events.' . $key, [] );
+			$enabled = array_key_exists( 'enabled', $config ) ? (bool) $config['enabled'] : (bool) $event['default_enabled'];
+			$subject = (string) ( $config['subject'] ?? '' );
+			$body    = (string) ( $config['body'] ?? '' );
+
+			$tokens_html = '';
+			foreach ( $event['tokens'] as $token => $token_desc ) {
+				$tokens_html .= sprintf(
+					'<li><code>%s</code> — %s</li>',
+					esc_html( $token ),
+					esc_html( $token_desc )
+				);
+			}
+
+			$audience_label = 'admin' === $event['audience']
+				? __( 'Sent to admin', 'partner-program' )
+				: __( 'Sent to partner', 'partner-program' );
+
+			?>
+			<details class="pp-email-event" <?php echo $enabled ? 'open' : ''; ?> style="border:1px solid #c3c4c7;background:#fff;padding:8px 16px;margin:0 0 12px;">
+				<summary style="cursor:pointer;font-weight:600;padding:6px 0;">
+					<?php echo esc_html( $event['label'] ); ?>
+					<span style="font-weight:400;color:#646970;margin-left:8px;">— <?php echo esc_html( $audience_label ); ?></span>
+				</summary>
+				<p class="description" style="margin-top:4px;"><?php echo esc_html( $event['description'] ); ?></p>
+				<table class="form-table">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Enabled', 'partner-program' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="emails_events[<?php echo esc_attr( $key ); ?>][enabled]" value="1" <?php checked( $enabled ); ?> />
+								<?php esc_html_e( 'Send this email', 'partner-program' ); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="emails_subject_<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Subject', 'partner-program' ); ?></label></th>
+						<td>
+							<input type="text" id="emails_subject_<?php echo esc_attr( $key ); ?>" name="emails_events[<?php echo esc_attr( $key ); ?>][subject]" value="<?php echo esc_attr( $subject ); ?>" class="large-text" placeholder="<?php echo esc_attr( $event['subject'] ); ?>" />
+							<p class="description"><?php esc_html_e( 'Leave blank to use the default shown as placeholder.', 'partner-program' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="emails_body_<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Body', 'partner-program' ); ?></label></th>
+						<td>
+							<textarea id="emails_body_<?php echo esc_attr( $key ); ?>" name="emails_events[<?php echo esc_attr( $key ); ?>][body]" rows="8" class="large-text code" placeholder="<?php echo esc_attr( $event['body'] ); ?>"><?php echo esc_textarea( $body ); ?></textarea>
+							<p class="description"><?php esc_html_e( 'Plain text or basic HTML. Leave blank to use the default.', 'partner-program' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Available tokens', 'partner-program' ); ?></th>
+						<td>
+							<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.6;"><?php echo $tokens_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></ul>
+						</td>
+					</tr>
+				</table>
+			</details>
+			<?php
+		}
 	}
 
 	private static function tab_logs( SettingsRepo $s ): void {
@@ -759,6 +852,27 @@ final class Settings {
 					'reject_failed'       => ! empty( $_POST['reject_failed'] ),
 					'fraud_meta_key'      => sanitize_text_field( (string) ( $_POST['fraud_meta_key'] ?? '' ) ),
 					'compliance_meta_key' => sanitize_text_field( (string) ( $_POST['compliance_meta_key'] ?? '' ) ),
+				] );
+				break;
+
+			case 'emails':
+				$raw_events = isset( $_POST['emails_events'] ) && is_array( $_POST['emails_events'] )
+					? wp_unslash( (array) $_POST['emails_events'] )
+					: [];
+				$clean_events = [];
+				foreach ( EventRegistry::all() as $event_key => $event_def ) {
+					$row                       = is_array( $raw_events[ $event_key ] ?? null ) ? $raw_events[ $event_key ] : [];
+					$clean_events[ $event_key ] = [
+						'enabled' => ! empty( $row['enabled'] ),
+						'subject' => sanitize_text_field( (string) ( $row['subject'] ?? '' ) ),
+						'body'    => wp_kses_post( (string) ( $row['body'] ?? '' ) ),
+					];
+				}
+				$repo->save_section( 'emails', [
+					'from_name'   => sanitize_text_field( wp_unslash( (string) ( $_POST['emails_from_name'] ?? '' ) ) ),
+					'from_email'  => sanitize_email( wp_unslash( (string) ( $_POST['emails_from_email'] ?? '' ) ) ),
+					'footer_text' => sanitize_textarea_field( wp_unslash( (string) ( $_POST['emails_footer_text'] ?? '' ) ) ),
+					'events'      => $clean_events,
 				] );
 				break;
 

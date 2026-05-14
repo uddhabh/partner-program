@@ -162,8 +162,6 @@ final class ApplicationForm {
 
 		do_action( 'partner_program_application_submitted', $application_id, $data );
 
-		$this->notify_admin( $application_id, $data );
-
 		$this->redirect_back(
 			__( 'Thanks for applying. We will review your application and email you when you are approved.', 'partner-program' ),
 			'success'
@@ -205,19 +203,6 @@ final class ApplicationForm {
 
 		PrivateUploads::mark_private( (int) $attachment_id, $original );
 		return (int) $attachment_id;
-	}
-
-	private function notify_admin( int $application_id, array $data ): void {
-		$settings = new SettingsRepo();
-		$to       = (string) $settings->get( 'general.support_email', get_option( 'admin_email' ) );
-		$program  = (string) $settings->get( 'general.program_name', __( 'Partner Program', 'partner-program' ) );
-		$subject  = sprintf( '[%s] %s', $program, __( 'New partner application', 'partner-program' ) );
-		$body     = __( 'A new partner application has been submitted.', 'partner-program' ) . "\n\n";
-		foreach ( $data as $k => $v ) {
-			$body .= $k . ': ' . ( is_scalar( $v ) ? (string) $v : wp_json_encode( $v ) ) . "\n";
-		}
-		$body .= "\n" . admin_url( 'admin.php?page=partner-program-applications&id=' . $application_id );
-		wp_mail( $to, $subject, $body );
 	}
 
 	private function redirect_back( string $message, string $type = 'success' ): void {
