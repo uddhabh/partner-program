@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace PartnerProgram\Core;
 
 use PartnerProgram\Admin\AdminMenu;
+use PartnerProgram\Admin\AffiliatesScreen;
 use PartnerProgram\Admin\Settings;
 use PartnerProgram\Application\ApplicationForm;
 use PartnerProgram\Application\ApplicationReview;
@@ -107,6 +108,7 @@ final class Plugin {
 		// static utilities — their cron / scan hooks are wired directly
 		// in boot() above, so they don't need register() instantiations.
 		( new AdminMenu() )->register();
+		AffiliatesScreen::register();
 		( new Settings() )->register();
 		( new ApplicationForm() )->register();
 		( new ApplicationReview() )->register();

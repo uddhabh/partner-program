@@ -132,7 +132,11 @@ final class CouponManager {
 		if ( ! $id ) {
 			return null;
 		}
-		$meta = get_post_meta( $id, '_pp_affiliate_id', true );
+		$coupon = new \WC_Coupon( $id );
+		if ( ! $coupon->get_id() ) {
+			return null;
+		}
+		$meta = $coupon->get_meta( '_pp_affiliate_id' );
 		return $meta ? (int) $meta : null;
 	}
 }

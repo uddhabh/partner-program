@@ -56,16 +56,27 @@ final class HoldReleaser {
 					break;
 				}
 
-				foreach ( $rows as $row ) {
-					CommissionRepo::update(
-						(int) $row['id'],
-						[
-							'status' => 'approved',
-						]
-					);
-					do_action( 'partner_program_commission_approved', (int) $row['id'] );
-					++$count;
+				// Bulk-update in one statement so a silent DB error on a
+				// single row can't leave it at status=pending and cause the
+				// outer while(true) to re-fetch the same batch forever.
+				$ids          = array_map( static fn ( array $r ): int => (int) $r['id'], $rows );
+				$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+				$updated      = (int) $wpdb->query(
+					$wpdb->prepare(
+						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+						'UPDATE ' . CommissionRepo::table() . " SET status = 'approved', updated_at = %s WHERE id IN ({$placeholders}) AND status = 'pending'",
+						array_merge( [ current_time( 'mysql', true ) ], $ids )
+					)
+				);
+
+				// Fire per-row action only for rows that were actually changed.
+				// rows_affected == $updated, but we don't know which specific
+				// IDs were skipped (concurrent update), so fire for all IDs
+				// and let listeners re-check status if it matters to them.
+				foreach ( $ids as $id ) {
+					do_action( 'partner_program_commission_approved', $id );
 				}
+				$count += $updated;
 
 				if ( count( $rows ) < self::BATCH_SIZE ) {
 					break;

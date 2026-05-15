@@ -28,7 +28,11 @@ final class ProhibitedTermsScanner {
 			if ( '' === $needle ) {
 				continue;
 			}
-			if ( false !== strpos( $haystack, $needle ) ) {
+			// Use word-boundary regex so "weight loss" doesn't match inside
+			// "counterweight losses" and "dosing" doesn't match "disposing".
+			// Multi-word phrases already contain spaces, which act as natural
+			// boundaries; the \b anchors handle single-word terms.
+			if ( 1 === preg_match( '/\b' . preg_quote( $needle, '/' ) . '\b/u', $haystack ) ) {
 				$found[] = $term;
 			}
 		}

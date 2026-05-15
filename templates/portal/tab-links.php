@@ -1,5 +1,5 @@
 <?php
-/** @var string $coupon_code @var string $ref_link */
+/** @var string $coupon_code @var string $ref_link @var bool $coupon_exists */
 defined( 'ABSPATH' ) || exit;
 ?>
 <h3><?php esc_html_e( 'Your referral link', 'partner-program' ); ?></h3>
@@ -13,6 +13,9 @@ defined( 'ABSPATH' ) || exit;
 	<input type="text" readonly value="<?php echo esc_attr( $coupon_code ); ?>" id="pp-coupon" />
 	<button type="button" class="pp-btn" data-pp-copy="pp-coupon"><?php esc_html_e( 'Copy', 'partner-program' ); ?></button>
 </div>
+<?php if ( ! $coupon_exists ) : ?>
+<p class="description"><?php esc_html_e( 'Your discount coupon has not been created in the store yet. Contact support if this persists.', 'partner-program' ); ?></p>
+<?php endif; ?>
 
 <h3 class="pp-mt-lg"><?php esc_html_e( 'Build a tagged link', 'partner-program' ); ?></h3>
 <p><?php esc_html_e( 'Paste any URL on this site and we will tag it with your referral code.', 'partner-program' ); ?></p>

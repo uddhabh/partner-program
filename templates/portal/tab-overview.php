@@ -1,10 +1,9 @@
 <?php
-/** @var int $pending_cents @var int $approved_cents @var int $paid_cents @var array $tier_progress @var array $tiers */
+/** @var int $pending_cents @var int $approved_cents @var int $paid_cents @var array $tier_progress @var array $tiers @var array|null $stored_tier */
 defined( 'ABSPATH' ) || exit;
 use PartnerProgram\Support\Money;
 use PartnerProgram\Support\Ui;
 
-$current_tier  = $tier_progress['current_tier'] ?? null;
 $next_tier     = $tier_progress['next_tier'] ?? null;
 $current_sales = (int) ( $tier_progress['current_sales_cents'] ?? 0 );
 
@@ -15,7 +14,22 @@ Ui::stat_cards( [
 ] );
 ?>
 
-<h3 class="pp-mt-xl"><?php esc_html_e( 'This month', 'partner-program' ); ?></h3>
+<?php if ( $stored_tier ) : ?>
+<p class="pp-mt-xl">
+	<?php
+	printf(
+		/* translators: 1: tier label, 2: commission rate percentage */
+		esc_html__( 'Your earning tier: %1$s (%2$s%% commission rate)', 'partner-program' ),
+		esc_html( (string) ( $stored_tier['label'] ?? '' ) ),
+		esc_html( (string) $stored_tier['rate'] )
+	);
+	?>
+</p>
+<?php else : ?>
+<p class="pp-mt-xl"><?php esc_html_e( 'No tier assigned yet — tier is set on the 1st of each month based on the previous month\'s sales.', 'partner-program' ); ?></p>
+<?php endif; ?>
+
+<h3 class="pp-mt-xl"><?php esc_html_e( 'This month\'s progress', 'partner-program' ); ?></h3>
 <p>
 	<?php
 	printf(
@@ -25,11 +39,6 @@ Ui::stat_cards( [
 	);
 	?>
 </p>
-<?php if ( $current_tier ) : ?>
-	<p>
-		<?php printf( esc_html__( 'Current tier: %s (%s%% rate)', 'partner-program' ), esc_html( (string) ( $current_tier['label'] ?? '' ) ), esc_html( (string) $current_tier['rate'] ) ); ?>
-	</p>
-<?php endif; ?>
 
 <?php if ( $next_tier ) : ?>
 	<?php
@@ -40,7 +49,7 @@ Ui::stat_cards( [
 		<?php
 		printf(
 			/* translators: 1: target sales amount, 2: tier label, 3: tier rate %, 4: remaining amount */
-			esc_html__( 'Reach %1$s in sales this month to unlock %2$s (%3$s%%) — %4$s to go.', 'partner-program' ),
+			esc_html__( 'Reach %1$s in sales this month to qualify for %2$s (%3$s%%) next month — %4$s to go.', 'partner-program' ),
 			esc_html( Money::format( $next_min_cents ) ),
 			esc_html( (string) ( $next_tier['label'] ?? '' ) ),
 			esc_html( (string) $next_tier['rate'] ),

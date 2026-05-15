@@ -154,6 +154,26 @@ final class AffiliateRepo {
 		return $wpdb->get_results( $wpdb->prepare( $sql, ...$params ), ARRAY_A ) ?: [];
 	}
 
+	public static function count( array $args = [] ): int {
+		global $wpdb;
+		$args   = wp_parse_args( $args, [ 'status' => '', 'search' => '' ] );
+		$where  = '1=1';
+		$params = [];
+		if ( $args['status'] ) {
+			$where    .= ' AND status = %s';
+			$params[]  = $args['status'];
+		}
+		if ( $args['search'] ) {
+			$where   .= ' AND (referral_code LIKE %s OR user_id IN (SELECT ID FROM ' . $wpdb->users . ' WHERE user_email LIKE %s OR display_name LIKE %s))';
+			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+		}
+		$sql = 'SELECT COUNT(*) FROM ' . self::table() . " WHERE {$where}";
+		return (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $sql, ...$params ) ) : $wpdb->get_var( $sql ) );
+	}
+
 	public static function decrypt_payout_details( ?string $blob ): array {
 		if ( ! $blob ) {
 			return [];

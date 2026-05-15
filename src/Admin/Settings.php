@@ -33,7 +33,7 @@ final class Settings {
 
 		$settings = new SettingsRepo();
 		$tabs     = [
-			'general'      => __( 'General / Branding', 'partner-program' ),
+			'general'      => __( 'General', 'partner-program' ),
 			'commissions'  => __( 'Commissions', 'partner-program' ),
 			'tiers'        => __( 'Tiers', 'partner-program' ),
 			'coupon_bonus' => __( 'Coupon Bonus', 'partner-program' ),

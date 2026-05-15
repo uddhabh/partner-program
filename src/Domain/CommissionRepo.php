@@ -238,4 +238,33 @@ final class CommissionRepo {
 
 		return $wpdb->get_results( $wpdb->prepare( $sql, ...$params ), ARRAY_A ) ?: [];
 	}
+
+	public static function count( array $args = [] ): int {
+		global $wpdb;
+		$args   = wp_parse_args( $args, [ 'affiliate_id' => 0, 'status' => '', 'order_id' => 0, 'from' => '', 'to' => '' ] );
+		$where  = '1=1';
+		$params = [];
+		if ( $args['affiliate_id'] ) {
+			$where    .= ' AND affiliate_id = %d';
+			$params[]  = (int) $args['affiliate_id'];
+		}
+		if ( $args['status'] ) {
+			$where    .= ' AND status = %s';
+			$params[]  = $args['status'];
+		}
+		if ( $args['order_id'] ) {
+			$where    .= ' AND order_id = %d';
+			$params[]  = (int) $args['order_id'];
+		}
+		if ( $args['from'] ) {
+			$where    .= ' AND created_at >= %s';
+			$params[]  = $args['from'];
+		}
+		if ( $args['to'] ) {
+			$where    .= ' AND created_at < %s';
+			$params[]  = $args['to'];
+		}
+		$sql = 'SELECT COUNT(*) FROM ' . self::table() . " WHERE {$where}";
+		return (int) ( $params ? $wpdb->get_var( $wpdb->prepare( $sql, ...$params ) ) : $wpdb->get_var( $sql ) );
+	}
 }

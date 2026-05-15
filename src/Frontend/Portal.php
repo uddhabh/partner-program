@@ -236,10 +236,23 @@ final class Portal {
 		$approved = CommissionRepo::sum_for_affiliate( $affiliate_id, 'approved' );
 		$paid     = CommissionRepo::sum_for_affiliate( $affiliate_id, 'paid' );
 
-		$tier_progress = TierResolver::progress_for_affiliate( $affiliate_id );
+		$tier_progress   = TierResolver::progress_for_affiliate( $affiliate_id );
+		$stored_tier_key = (string) ( $affiliate['current_tier_key'] ?? '' );
+		$stored_tier     = '' !== $stored_tier_key ? TierResolver::tier_for_key( $stored_tier_key ) : null;
 
-		$prefix      = (string) $settings->get( 'customer_coupon.prefix', 'PARTNER-' );
-		$coupon_code = strtoupper( $prefix . $affiliate['referral_code'] );
+		$prefix        = (string) $settings->get( 'customer_coupon.prefix', 'PARTNER-' );
+		$coupon_code   = '';
+		$coupon_exists = false;
+		if ( ! empty( $affiliate['coupon_id'] ) && class_exists( 'WC_Coupon' ) ) {
+			$wc_coupon = new \WC_Coupon( (int) $affiliate['coupon_id'] );
+			if ( $wc_coupon->get_id() ) {
+				$coupon_code   = $wc_coupon->get_code();
+				$coupon_exists = true;
+			}
+		}
+		if ( '' === $coupon_code ) {
+			$coupon_code = strtoupper( $prefix . $affiliate['referral_code'] );
+		}
 		$ref_param   = (string) $settings->get( 'tracking.param', 'ref' );
 		$site_url    = home_url( '/' );
 		$ref_link    = add_query_arg( [ $ref_param => $affiliate['referral_code'] ], $site_url );
@@ -262,8 +275,10 @@ final class Portal {
 			'approved_cents'=> $approved,
 			'paid_cents'    => $paid,
 			'tier_progress' => $tier_progress,
+			'stored_tier'   => $stored_tier,
 			'tiers'         => TierResolver::tiers(),
 			'coupon_code'   => $coupon_code,
+			'coupon_exists' => $coupon_exists,
 			'ref_link'      => $ref_link,
 			'ref_param'     => $ref_param,
 			'commissions'   => $commissions,

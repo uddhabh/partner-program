@@ -275,7 +275,7 @@ final class PayoutManager {
 		foreach ( $items as $item ) {
 			CommissionRepo::update( (int) $item['commission_id'], [ 'payout_id' => null ] );
 		}
-		PayoutRepo::update( $payout_id, [ 'status' => 'failed', 'notes' => 'Reverted by admin' ] );
+		PayoutRepo::update( $payout_id, [ 'status' => 'reverted', 'notes' => 'Reverted by admin' ] );
 		do_action( 'partner_program_payout_reverted', $payout_id );
 	}
 

@@ -27,8 +27,12 @@ final class CommissionsScreen {
 		self::handle_bulk();
 		self::handle_manual_adjustment();
 
-		$status = isset( $_GET['status'] ) ? sanitize_key( (string) $_GET['status'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$rows   = CommissionRepo::search( [ 'status' => $status, 'per_page' => 100 ] );
+		$status      = isset( $_GET['status'] ) ? sanitize_key( (string) $_GET['status'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page        = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$per_page    = 100;
+		$total_items = CommissionRepo::count( [ 'status' => $status ] );
+		$total_pages = max( 1, (int) ceil( $total_items / $per_page ) );
+		$rows        = CommissionRepo::search( [ 'status' => $status, 'per_page' => $per_page, 'page' => $page ] );
 
 		$affiliates = AffiliateRepo::find_many( array_map( static fn ( $r ): int => (int) $r['affiliate_id'], $rows ) );
 		cache_users( array_values( array_filter( array_map( static fn ( $a ): int => (int) ( $a['user_id'] ?? 0 ), $affiliates ) ) ) );
@@ -100,7 +104,24 @@ final class CommissionsScreen {
 		if ( ! $rows ) {
 			echo '<tr><td colspan="11">' . esc_html__( 'None.', 'partner-program' ) . '</td></tr>';
 		}
-		echo '</tbody></table></form>';
+		echo '</tbody></table>';
+
+		if ( $total_pages > 1 ) {
+			echo '<div class="tablenav bottom"><div class="tablenav-pages">';
+			echo paginate_links( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				[
+					'base'      => add_query_arg( 'paged', '%#%' ),
+					'format'    => '',
+					'total'     => $total_pages,
+					'current'   => $page,
+					'prev_text' => '&laquo;',
+					'next_text' => '&raquo;',
+				]
+			);
+			echo '</div></div>';
+		}
+
+		echo '</form>';
 
 		echo '<h2>' . esc_html__( 'Manual adjustment', 'partner-program' ) . '</h2>';
 		echo '<form method="post"><input type="hidden" name="manual_adjustment" value="1" />';

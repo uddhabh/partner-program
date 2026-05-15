@@ -26,7 +26,11 @@ final class PayoutsScreen {
 
 		self::handle_actions();
 
-		$rows       = PayoutRepo::search( [ 'per_page' => 100 ] );
+		$page        = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$per_page    = 100;
+		$total_items = PayoutRepo::count();
+		$total_pages = max( 1, (int) ceil( $total_items / $per_page ) );
+		$rows        = PayoutRepo::search( [ 'per_page' => $per_page, 'page' => $page ] );
 		$affiliates = AffiliateRepo::find_many( array_map( static fn ( $r ): int => (int) $r['affiliate_id'], $rows ) );
 		cache_users( array_values( array_filter( array_map( static fn ( $a ): int => (int) ( $a['user_id'] ?? 0 ), $affiliates ) ) ) );
 
@@ -74,7 +78,14 @@ final class PayoutsScreen {
 			echo '<td>' . esc_html( ( $row['period_start'] ?? '' ) . ' / ' . ( $row['period_end'] ?? '' ) ) . '</td>';
 			echo '<td>' . esc_html( (string) $row['method'] ) . '</td>';
 			echo '<td>' . esc_html( Money::format( (int) $row['total_amount_cents'], (string) $row['currency'] ) ) . '</td>';
-			echo '<td>' . esc_html( (string) $row['status'] ) . '</td>';
+			$status_labels = [
+					'queued'   => __( 'Queued', 'partner-program' ),
+					'paid'     => __( 'Paid', 'partner-program' ),
+					'reverted' => __( 'Reverted', 'partner-program' ),
+					'failed'   => __( 'Failed', 'partner-program' ),
+				];
+				$status_label = $status_labels[ (string) $row['status'] ] ?? ucfirst( (string) $row['status'] );
+				echo '<td>' . esc_html( $status_label ) . '</td>';
 			echo '<td>' . esc_html( (string) $row['reference'] ) . '</td>';
 			echo '<td>';
 			if ( 'queued' === $row['status'] ) {
@@ -99,6 +110,21 @@ final class PayoutsScreen {
 			echo '<tr><td colspan="8">' . esc_html__( 'No payouts yet.', 'partner-program' ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
+
+		if ( $total_pages > 1 ) {
+			echo '<div class="tablenav bottom"><div class="tablenav-pages">';
+			echo paginate_links( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				[
+					'base'      => add_query_arg( 'paged', '%#%' ),
+					'format'    => '',
+					'total'     => $total_pages,
+					'current'   => $page,
+					'prev_text' => '&laquo;',
+					'next_text' => '&raquo;',
+				]
+			);
+			echo '</div></div>';
+		}
 
 		if ( $batches ) {
 			echo '<h2>' . esc_html__( 'CSV exports', 'partner-program' ) . '</h2><ul>';
